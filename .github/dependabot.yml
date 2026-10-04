@@ -6,6 +6,13 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     labels: ["dependencies", "python"]
+    # requirements.txt and requirements-lock.txt are generated from poetry.lock,
+    # so bumping a single pin inside them breaks the resolution (pydantic pins
+    # pydantic-core, mlflow pins protobuf, aiohttp pins multidict, ...).
+    # Dependabot must therefore update pyproject.toml + poetry.lock instead.
+    exclude-paths:
+      - "requirements.txt"
+      - "requirements-lock.txt"
 
   - package-ecosystem: "github-actions"
     directory: "/"
