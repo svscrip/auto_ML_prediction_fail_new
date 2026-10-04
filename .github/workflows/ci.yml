@@ -83,8 +83,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The image installs MLflow, CatBoost and matplotlib, so the default
+      # amount of free space on a hosted runner is not always enough.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get clean
+          df -h /
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Layers (the ~1 GB pip install in particular) are reused across runs.
       - name: Build image
-        run: docker build -t machine-failure-mlops:latest .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: machine-failure-mlops:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
 
       - name: Smoke train (container)
         run: |
