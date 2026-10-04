@@ -1,0 +1,16 @@
+[flake8]
+max-line-length = 88
+# E203/W503 conflict with Black formatting rules.
+extend-ignore = E203,W503
+exclude =
+    .git,
+    .venv,
+    __pycache__,
+    build,
+    dist,
+    artifacts,
+    reference-material,
+    keis7-main
+per-file-ignores =
+    # Tests may use assertions and long helper calls.
+    tests/*:E402

@@ -1,4 +1,9 @@
 FROM python:3.11-slim
-RUN pip install --no-cache-dir "mlflow>=2.9.0"
+
+# MLflow tracking server for local demos.
+# Keep this version in sync with mlflow in pyproject.toml / poetry.lock.
+RUN pip install --no-cache-dir "mlflow==3.16.1"
+
 WORKDIR /app
+
 EXPOSE 5000

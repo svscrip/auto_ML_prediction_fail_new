@@ -21,4 +21,4 @@ foreach ($path in $paths) {
     }
 }
 
-Write-Host "MLflow store reset. Run: python -m src.train --smoke"
+Write-Host "MLflow store reset. Run: poetry run python -m src.train --smoke"

@@ -1,5 +1,3 @@
-import pytest
-
 from src.monitoring import evaluate_drift, interpret_psi
 
 

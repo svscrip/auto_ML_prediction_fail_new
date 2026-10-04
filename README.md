@@ -1,8 +1,10 @@
-# Буржимский Сергей, Яньшин Александр, Фер Андрей, Скрипин Сергей— Прогноз отказов оборудования
+# Скрипин Сергей — Прогноз отказов оборудования
 
-**Групповой проект · команда из 4 человек**  
+**Автор: Скрипин Сергей**  
 Дисциплина: **«Автоматизация машинного обучения»** (Нетология).  
 Автоматизированный ML-пайплайн для бинарной классификации отказов промышленного оборудования на датасете [Kaggle Playground Series S3E17](https://www.kaggle.com/competitions/playground-series-s3e17).
+
+![CI](https://github.com/svscrip/auto_ML-prediction_machines_failures/actions/workflows/ci.yml/badge.svg) ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg) ![Poetry](https://img.shields.io/badge/dependency%20management-poetry-60a5fa.svg)
 
 > **Ссылка на GitHub:** https://github.com/svscrip/auto_ML-prediction_machines_failures  
 > **Ветка сдачи проекта:** [main](https://github.com/svscrip/auto_ML-prediction_machines_failures/tree/main)
@@ -297,15 +299,50 @@ docker compose up mlflow   # UI на http://localhost:5000
 
 ---
 
-## 11. CI/CD
+## 11. CI/CD и качество кода
 
-Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+### Окружение разработки (Poetry + per-project `.venv`)
 
-1. `checkout`  
-2. `setup-python` 3.11  
-3. `pip install -r requirements.txt`  
-4. `pytest -q`  
-5. `docker build` + smoke `src.train --smoke` в контейнере  
+Проект использует **Poetry** для управления зависимостями и **локальное**
+виртуальное окружение `.venv/` в корне репозитория (настраивается в
+`poetry.toml`, игнорируется git).
+
+```bash
+pip install --user poetry          # установка Poetry
+poetry install                     # создать .venv и установить зависимости
+poetry run pre-commit install      # подключить git-хуки
+```
+
+Windows-хелперы: `.\scripts\bootstrap.ps1` (создание окружения) и
+`.\scripts\activate.ps1` (активация). Подробности — в [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Инструменты качества кода
+
+| Инструмент | Роль | Конфигурация |
+|------------|------|--------------|
+| **Black** | форматирование (длина строки 88) | `pyproject.toml` |
+| **isort** | сортировка импортов (profile=black) | `pyproject.toml` |
+| **flake8** (+ flake8-bugbear) | PEP8 + баг-детектор | `.flake8` |
+| **pre-commit** | единая точка запуска хуков | `.pre-commit-config.yaml` |
+| **pytest** (+ pytest-cov) | тесты и покрытие | `pyproject.toml` |
+
+```bash
+poetry run pre-commit run --all-files   # линт + формат по всем файлам
+poetry run pytest -q                    # быстрые тесты
+poetry run pytest -q -m slow            # полный smoke-тест обучения
+```
+
+### Workflow CI — [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+
+1. **lint** — `pre-commit run --all-files` (black, isort, flake8 и файловые чекеры);
+2. **test** — матрица Python **3.11 / 3.12 / 3.13**: `poetry install` → `pytest` с покрытием;
+3. **docker** — `docker build` + smoke-прогоны `src.train --smoke` и `src.predict` в контейнере.
+
+### Workflow CD — [`.github/workflows/cd.yml`](.github/workflows/cd.yml)
+
+По тегу `v*`: тесты → сборка и публикация Docker-образа в **GHCR** → GitHub Release.
+
+Зависимости обновляются автоматически через [`.github/dependabot.yml`](.github/dependabot.yml).
 
 ### Git-команды (использованные при разработке)
 
@@ -319,17 +356,13 @@ git remote add origin https://github.com/svscrip/auto_ML-prediction_machines_fai
 git push -u origin main
 ```
 
-**Командная работа (ветки и pull request):**
+**Работа через ветки и pull request:**
 
 ```bash
-git checkout -b feature/uchastnik-1-etl
+git checkout -b feature/etl
 git add . && git commit -m "feat: ETL and feature engineering"
-git push -u origin feature/uchastnik-1-etl
-gh pr create --title "Участник 1: ETL" --base main
-
-git checkout main && git pull
-git checkout -b feature/uchastnik-2-train
-# ... аналогично для Участника 2, 3, 4
+git push -u origin feature/etl
+gh pr create --title "feat: ETL" --base main
 ```
 
 ---
@@ -425,58 +458,60 @@ docker compose up mlflow            # тот же backend в контейнер�
 
 ---
 
-## 15. Участники и формат
+## 15. Автор
 
-- **Формат:** групповой проект (**4 участника**, допустимо по ТЗ 2–4 человека)
-- **Преподаватель:** `@ElenaSmyslovskikh`
+**Скрипин Сергей** — пайплайн (ETL, обучение, инференс, мониторинг),
+инфраструктура (Docker, CI/CD), документация и презентация.
 
-| № | Участник | Зона ответственности |
-|---|----------|---------------------|
-| 1 | Буржимский Сергей | ETL, feature engineering, EDA |
-| 2 | Яньшин Александр | Обучение модели, MLflow, метрики |
-| 3 | Фер Андрей | Инференс, мониторинг, рекомендации по обслуживанию |
-| 4 | Скрипин Сергей | Docker, CI/CD, README, презентация |
+### Git workflow
 
-### Git workflow команды
-
-По ТЗ: каждый участник работает в **отдельной ветке**, изменения вливаются через **pull request**.
-
-| Участник | Пример ветки | Область |
-|----------|--------------|---------|
-| Буржимский Сергей | `auto_ML-prediction_machines_failures/tree/feature/BSergey2000/` | `src/etl/`, `tests/test_features.py` |
-| Яньшин Александр| `auto_ML-prediction_machines_failures/tree/Yanshin` | `src/train.py`, MLflow |
-| Фер Андрей | `auto_ML-prediction_machines_failures/tree/feature/Andrey_Fer` | `src/predict.py`, `src/monitoring.py` |
-| Скрипин Сергей | `auto_ML-prediction_machines_failures/tree/main` | Docker, CI, README, docs |
+- Базовая ветка — `main`; новая функциональность — в ветках `feature/<имя>`.
+- Изменения вливаются через **pull request** после зелёного CI.
+- Стиль коммитов — [Conventional Commits](https://www.conventionalcommits.org/)
+  (`feat:`, `fix:`, `docs:`, ...).
 
 ---
 
 ## Приложение A. Быстрый старт (локально)
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+pip install --user poetry
+poetry install
 
-python -m src.train          # полное обучение
-python -m src.train --smoke  # быстрый прогон
-python -m src.predict
+poetry run python -m src.train          # полное обучение
+poetry run python -m src.train --smoke  # быстрый smoke-прогон
+poetry run python -m src.predict
 ```
+
+Активация окружения вручную: `.\scripts\activate.ps1` (Windows) или
+`source .venv/bin/activate` (Linux/macOS).
 
 Структура проекта:
 
 ```
-bhemml-25-amo-2/
-├── src/                 # пайплайн
-├── tests/               # pytest
-├── keis7-main/          # train.csv, test.csv
-├── reference-material/  # ноутбуки, задание, исследования
-├── docs/                # презентация, images/
-├── artifacts/           # модель, метрики, предсказания
-├── scripts/             # локальный запуск
-├── Dockerfile
+auto_ML-prediction_machines_failures/
+├── src/                        # пайплайн (etl/, train, predict, monitoring, plots)
+├── tests/                      # pytest
+├── keis7-main/                 # train.csv, test.csv
+├── reference-material/         # ноутбуки, задание, исследования
+├── docs/                       # презентация, images/
+├── artifacts/                  # модель, метрики, предсказания
+├── scripts/                    # bootstrap.ps1, activate.ps1, запуск MLflow
+├── pyproject.toml              # зависимости + конфиг black/isort/pytest
+├── poetry.lock                 # lock-файл зависимостей
+├── .flake8                     # конфиг flake8
+├── .pre-commit-config.yaml     # git-хуки
+├── Dockerfile                  # образ пайплайна
+├── Dockerfile.mlflow           # образ MLflow UI
 ├── docker-compose.yml
-└── .github/workflows/ci.yml
+└── .github/workflows/          # ci.yml, cd.yml + dependabot.yml
 ```
+
+---
+
+## Приложение B. Вклад в проект
+
+Правила разработки, стиль кода, тесты и git-workflow — в [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

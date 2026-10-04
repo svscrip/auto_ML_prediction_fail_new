@@ -1,4 +1,5 @@
 """Extract: load and validate CSV data."""
+
 import pandas as pd
 
 from src.config import (
@@ -12,12 +13,9 @@ from src.config import (
     TYPE_COL,
 )
 
+
 def _required_columns(require_target: bool) -> list[str]:
-    cols = (
-        [ID_COL, PRODUCT_ID_COL, TYPE_COL]
-        + RAW_NUMERIC_FEATURES
-        + FAILURE_FLAGS
-    )
+    cols = [ID_COL, PRODUCT_ID_COL, TYPE_COL] + RAW_NUMERIC_FEATURES + FAILURE_FLAGS
     if require_target:
         cols.append(TARGET_COL)
     return cols

@@ -1,8 +1,8 @@
 """Generate evaluation plots for artifacts."""
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 from sklearn.metrics import RocCurveDisplay, confusion_matrix
 
@@ -61,7 +61,13 @@ def save_model_metrics_chart(path: Path, metrics: dict) -> None:
     ax.set_title(title, fontsize=12, fontweight="bold")
     ax.grid(axis="x", alpha=0.3)
     for bar, value in zip(bars, values):
-        ax.text(value + 0.02, bar.get_y() + bar.get_height() / 2, f"{value:.3f}", va="center", fontsize=10)
+        ax.text(
+            value + 0.02,
+            bar.get_y() + bar.get_height() / 2,
+            f"{value:.3f}",
+            va="center",
+            fontsize=10,
+        )
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=120, bbox_inches="tight")
@@ -131,14 +137,17 @@ def save_drift_chart(drift_features: dict, path: Path) -> None:
     """PSI drift chart for inference monitoring."""
     features = list(drift_features.keys())
     psi_values = [drift_features[f]["psi"] for f in features]
-    colors = ["#2ecc71" if v < 0.1 else "#f1c40f" if v < 0.25 else "#e74c3c" for v in psi_values]
+    colors = [
+        "#2ecc71" if v < 0.1 else "#f1c40f" if v < 0.25 else "#e74c3c"
+        for v in psi_values
+    ]
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.barh(features, psi_values, color=colors)
     ax.axvline(0.1, color="orange", linestyle="--", label="PSI warning (0.1)")
     ax.axvline(0.25, color="red", linestyle="--", label="PSI critical (0.25)")
     ax.set_xlabel("Population Stability Index (PSI)")
-    ax.set_title("Feature Drift: train → test")
+    ax.set_title("Feature Drift: train -> test")
     ax.legend(loc="lower right")
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)

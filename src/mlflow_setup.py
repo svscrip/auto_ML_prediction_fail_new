@@ -1,4 +1,5 @@
 """Single MLflow backend for this project (SQLite + local artifacts)."""
+
 import mlflow
 from mlflow.exceptions import MlflowException
 
@@ -18,11 +19,13 @@ def _normalize_artifact_uri(uri: str) -> str:
 def _artifact_uri_matches(actual: str, expected: str) -> bool:
     actual_norm = _normalize_artifact_uri(actual)
     expected_norm = _normalize_artifact_uri(expected)
-    return actual_norm == expected_norm or actual_norm.endswith("/artifacts/mlartifacts")
+    return actual_norm == expected_norm or actual_norm.endswith(
+        "/artifacts/mlartifacts"
+    )
 
 
 def _reset_tracking_store() -> None:
-    """Drop local SQLite store when experiment paths belong to another machine/folder."""
+    """Drop local SQLite store if experiment paths belong to another machine."""
     if MLFLOW_DB.exists():
         MLFLOW_DB.unlink()
 

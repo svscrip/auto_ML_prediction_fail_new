@@ -1,12 +1,11 @@
 """Transform: feature engineering from case7.ipynb."""
+
 import pandas as pd
 
 from src.config import (
-    ENGINEERED_FEATURES,
     FAILURE_FLAGS,
     MODEL_FEATURES,
     PRODUCT_ID_COL,
-    RAW_NUMERIC_FEATURES,
     TARGET_COL,
     TYPE_COL,
 )
@@ -41,7 +40,9 @@ def build_features(df: pd.DataFrame, is_train: bool = True) -> pd.DataFrame:
     out[FAILURE_FLAGS] = flags
     out = out.sort_values([TYPE_COL, PRODUCT_ID_COL, "Tool wear [min]"])
     out["failures_sum"] = flags.sum(axis=1)
-    cumsum = out.groupby([TYPE_COL, PRODUCT_ID_COL], observed=True)["failures_sum"].cumsum()
+    cumsum = out.groupby([TYPE_COL, PRODUCT_ID_COL], observed=True)[
+        "failures_sum"
+    ].cumsum()
     # вычитаем текущую строку, чтобы считать только прошлые отказы
     out["total_failures_cum"] = cumsum - out["failures_sum"]
     out = out.drop(columns=["failures_sum"])

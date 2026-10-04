@@ -1,4 +1,5 @@
 """Inference and business recommendations."""
+
 import argparse
 import json
 from pathlib import Path
@@ -33,8 +34,10 @@ def predict(
     use_train_for_drift: bool = True,
 ) -> pd.DataFrame:
     """
-    Выполняет предсказание вероятности отказа оборудования, для полученной вероятности присвает риск, выраженный перечислением ["Низкий", "Средний", "Высокий"].
-    Формирует рекоммендации по улучшению качества модели и, при необходимости, рассчитывает дрейф данных.
+    Выполняет предсказание вероятности отказа оборудования и присваивает риск
+    из перечисления ["Низкий", "Средний", "Высокий"].
+    Формирует рекомендации по улучшению качества модели и, при необходимости,
+    рассчитывает дрейф данных.
     Для презентации работоспособности используются тестовые данные
     """
     output_dir = output_dir or ARTIFACTS_DIR
@@ -56,12 +59,20 @@ def predict(
     pool = Pool(X, cat_features=cat_idx)
     probabilities = model.predict_proba(pool)[:, 1]
 
-    result = test_df[[c for c in ["id", PRODUCT_ID_COL, TYPE_COL] if c in test_df.columns]].copy()
+    result = test_df[
+        [c for c in ["id", PRODUCT_ID_COL, TYPE_COL] if c in test_df.columns]
+    ].copy()
     if "id" not in result.columns:
         result = test_df[[PRODUCT_ID_COL, TYPE_COL]].copy()
 
     result["failure_probability"] = probabilities
-    for col in ["efficiency [%]", "Tool wear [min]", "delta_temperature [K]", "Power [kW]", "air_mass"]:
+    for col in [
+        "efficiency [%]",
+        "Tool wear [min]",
+        "delta_temperature [K]",
+        "Power [kW]",
+        "air_mass",
+    ]:
         if col in test_df.columns:
             result[col] = test_df[col].values
     if "Power [kW]" in result.columns:
@@ -93,9 +104,11 @@ def predict(
     return result
 
 
-def build_recommendations(predictions: pd.DataFrame, features: pd.DataFrame) -> pd.DataFrame:
+def build_recommendations(
+    predictions: pd.DataFrame, features: pd.DataFrame
+) -> pd.DataFrame:
     """
-    На основании полученных предсказаний формирует рекоммендации для последующего улучшения качества модели
+    На основе предсказаний формирует рекомендации по улучшению качества модели.
     """
     rows = []
 

@@ -6,7 +6,7 @@ $Python = Join-Path $Root ".venv\Scripts\python.exe"
 $Mlflow = Join-Path $Root ".venv\Scripts\mlflow.exe"
 
 if (-not (Test-Path $Python)) {
-    Write-Error "Сначала создайте окружение: py -m venv .venv; .venv\Scripts\pip install -r requirements.txt"
+    Write-Error "Сначала создайте окружение: poetry install (или .\scripts\bootstrap.ps1)"
     exit 1
 }
 

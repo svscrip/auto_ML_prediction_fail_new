@@ -51,7 +51,7 @@ def test_clean_contradictory_rows_keeps_consistent():
 
 def test_efficiency_clipped_to_valid_range():
     row = _synthetic_row()
-    # Process temp < Air temp → delta отрицательный → без clip efficiency уходит < 0
+    # Process temp < Air temp -> delta отрицательный -> без clip efficiency уходит < 0
     row["Air temperature [K]"] = 320.0
     row["Process temperature [K]"] = 300.0
     df = build_features(row, is_train=True)

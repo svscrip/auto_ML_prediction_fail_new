@@ -1,4 +1,5 @@
 """Train CatBoost model with MLflow tracking."""
+
 import argparse
 import json
 import time
@@ -18,16 +19,15 @@ from sklearn.model_selection import train_test_split
 
 from src.config import (
     ARTIFACTS_DIR,
-    CATBOOST_PARAMS,
     CAT_FEATURES,
+    CATBOOST_PARAMS,
     RANDOM_STATE,
     SMOKE_SAMPLE_SIZE,
-    TARGET_COL,
     TRAIN_TEST_SIZE,
 )
-from src.mlflow_setup import setup_mlflow
 from src.etl.features import build_features, get_feature_matrix
 from src.etl.load import load_train
+from src.mlflow_setup import setup_mlflow
 from src.monitoring import (
     build_training_monitoring_summary,
     compute_data_quality_report,
@@ -153,7 +153,7 @@ def train_model(
         mlflow.log_artifact(str(plots_dir / "model_metrics.png"))
         mlflow.log_artifact(str(plots_dir / "infrastructure_training.png"))
 
-        mlflow.catboost.log_model(model, "model")
+        mlflow.catboost.log_model(model, name="model")
 
     return metrics
 
@@ -164,7 +164,7 @@ def main() -> None:
         "--sample-size",
         type=int,
         default=None,
-        help=f"Use subset for smoke tests (default: full dataset)",
+        help="Use subset for smoke tests (default: full dataset)",
     )
     parser.add_argument(
         "--smoke",
