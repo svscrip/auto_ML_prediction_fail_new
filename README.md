@@ -4,10 +4,10 @@
 Дисциплина: **«Автоматизация машинного обучения»** (Нетология).  
 Автоматизированный ML-пайплайн для бинарной классификации отказов промышленного оборудования на датасете [Kaggle Playground Series S3E17](https://www.kaggle.com/competitions/playground-series-s3e17).
 
-![CI](https://github.com/svscrip/auto_ML-prediction_machines_failures/actions/workflows/ci.yml/badge.svg) ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg) ![Poetry](https://img.shields.io/badge/dependency%20management-poetry-60a5fa.svg)
+![CI](https://github.com/svscrip/auto_ML_prediction_fail_new/actions/workflows/ci.yml/badge.svg) ![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg) ![Poetry](https://img.shields.io/badge/dependency%20management-poetry-60a5fa.svg)
 
-> **Ссылка на GitHub:** https://github.com/svscrip/auto_ML-prediction_machines_failures  
-> **Ветка сдачи проекта:** [main](https://github.com/svscrip/auto_ML-prediction_machines_failures/tree/main)
+> **Ссылка на GitHub:** https://github.com/svscrip/auto_ML_prediction_fail_new  
+> **Ветка сдачи проекта:** [main](https://github.com/svscrip/auto_ML_prediction_fail_new/tree/main)
 > **Доступ преподавателю:** добавьте collaborator `@ElenaSmyslovskikh`.
 
 ---
@@ -352,7 +352,7 @@ git add .
 git commit -m "Initial MLOps pipeline for machine failure prediction"
 git branch -M main
 
-git remote add origin https://github.com/svscrip/auto_ML-prediction_machines_failures.git
+git remote add origin https://github.com/svscrip/auto_ML_prediction_fail_new.git
 git push -u origin main
 ```
 
@@ -443,8 +443,8 @@ docker compose up mlflow            # тот же backend в контейнер�
 
 ## 13. GitHub-репозиторий
 
-**Репозиторий проекта:** https://github.com/svscrip/auto_ML-prediction_machines_failures  
-**Ветка сдачи:** https://github.com/svscrip/auto_ML-prediction_machines_failures/tree/main
+**Репозиторий проекта:** https://github.com/svscrip/auto_ML_prediction_fail_new  
+**Ветка сдачи:** https://github.com/svscrip/auto_ML_prediction_fail_new/tree/main
 
 - Репозиторий **публичный** (открытый доступ для проверки).
 - CI: GitHub Actions — pytest + Docker smoke train (см. §11).
