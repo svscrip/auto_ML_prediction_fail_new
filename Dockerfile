@@ -18,7 +18,7 @@ RUN apt-get update \
 # Runtime dependencies are installed first for better layer caching.
 # requirements.txt is the pinned, Poetry-generated runtime lock (see README).
 COPY requirements.txt ./
-RUN pip install -r requirements.txt
+RUN pip install --retries 5 --timeout 60 -r requirements.txt
 
 # The runtime image ships neither the git binary nor a .git directory, so
 # gitpython's repository lookup (used by MLflow model logging) is expected to
