@@ -1,0 +1,428 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BPMN 2.0 — жизненный цикл ML-модели прогноза отказов оборудования.
+  Трассировка: src/etl/load.py, src/etl/features.py, src/train.py, src/predict.py,
+  src/monitoring.py, src/config.py, docs/bpmn/README.md.
+  Открыть: bpmn.io, Camunda Modeler, VS Code (bpmn-js), draw.io.
+-->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_MLOps" targetNamespace="http://bpmn.io/schema/bpmn" exporter="handmade-bpmn" exporterVersion="1.0">
+  <bpmn:collaboration id="Collaboration_MLOps">
+    <bpmn:participant id="Participant_MLOps" name="MLOps: прогноз отказов оборудования (CatBoost + MLflow)" processRef="Process_MLOps" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_MLOps" name="Жизненный цикл ML-модели" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_MLOps">
+      <bpmn:lane id="Lane_Data" name="Данные и ETL">
+        <bpmn:flowNodeRef>StartEvent_Telemetry</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Load</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_DataValid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_FixData</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_ML" name="ML-инженер (обучение)">
+        <bpmn:flowNodeRef>Task_Features</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Split</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Train</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Evaluate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_AUC</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Tune</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_MLflow" name="MLflow (трекинг эксперимента)">
+        <bpmn:flowNodeRef>Task_LogRun</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SaveArtifacts</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Ops" name="Эксплуатация (инференс и мониторинг)">
+        <bpmn:flowNodeRef>Gateway_ModelExists</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Predict</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Risk</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Monitor</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Drift</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Investigate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_RetrainDecision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_HandedOver</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_Telemetry" name="Поступила телеметрия: train.csv (~136k), test.csv (~91k)">
+      <bpmn:outgoing>Flow_Start_Load</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_Load" name="Загрузка и валидация данных (src/etl/load.py)">
+      <bpmn:incoming>Flow_Start_Load</bpmn:incoming>
+      <bpmn:outgoing>Flow_Load_DataValid</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_DataValid" name="Данные валидны?">
+      <bpmn:incoming>Flow_Load_DataValid</bpmn:incoming>
+      <bpmn:outgoing>Flow_DataValid_Fix</bpmn:outgoing>
+      <bpmn:outgoing>Flow_DataValid_Features</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_FixData" name="Исправить источник данных: пропуски, дубликаты, схема">
+      <bpmn:incoming>Flow_DataValid_Fix</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fix_Load</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_Features" name="Построение признаков (src/etl/features.py)">
+      <bpmn:incoming>Flow_DataValid_Features</bpmn:incoming>
+      <bpmn:incoming>Flow_Tune_Features</bpmn:incoming>
+      <bpmn:outgoing>Flow_Features_Split</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Split" name="Стратифицированный hold-out 80/20 (random_state=42)">
+      <bpmn:incoming>Flow_Features_Split</bpmn:incoming>
+      <bpmn:outgoing>Flow_Split_Train</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Train" name="Обучение CatBoost: 500 итераций, lr=0,03, depth=8">
+      <bpmn:incoming>Flow_Split_Train</bpmn:incoming>
+      <bpmn:incoming>Flow_GwModel_Train</bpmn:incoming>
+      <bpmn:incoming>Flow_Retrain_Train</bpmn:incoming>
+      <bpmn:outgoing>Flow_Train_Evaluate</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Evaluate" name="Оценка метрик на hold-out (metrics.json)">
+      <bpmn:incoming>Flow_Train_Evaluate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Evaluate_AUC</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_AUC" name="ROC-AUC ≥ 0,9?">
+      <bpmn:incoming>Flow_Evaluate_AUC</bpmn:incoming>
+      <bpmn:outgoing>Flow_AUC_Tune</bpmn:outgoing>
+      <bpmn:outgoing>Flow_AUC_LogRun</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Tune" name="Доработка признаков и гиперпараметров">
+      <bpmn:incoming>Flow_AUC_Tune</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tune_Features</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_LogRun" name="Логирование запуска в MLflow (эксперимент machine_failure_prediction)">
+      <bpmn:incoming>Flow_AUC_LogRun</bpmn:incoming>
+      <bpmn:outgoing>Flow_LogRun_Save</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_SaveArtifacts" name="Сохранение артефактов: model.cbm, metrics.json, plots/">
+      <bpmn:incoming>Flow_LogRun_Save</bpmn:incoming>
+      <bpmn:outgoing>Flow_Save_GwModel</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_ModelExists" name="model.cbm найден?">
+      <bpmn:incoming>Flow_Save_GwModel</bpmn:incoming>
+      <bpmn:outgoing>Flow_GwModel_Train</bpmn:outgoing>
+      <bpmn:outgoing>Flow_GwModel_Predict</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Predict" name="Батч-инференс test.csv → predictions.csv (src.predict)">
+      <bpmn:incoming>Flow_GwModel_Predict</bpmn:incoming>
+      <bpmn:incoming>Flow_Investigate_Predict</bpmn:incoming>
+      <bpmn:outgoing>Flow_Predict_Risk</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Risk" name="Уровни риска по квантилям 50%/90% → maintenance_recommendations.csv">
+      <bpmn:incoming>Flow_Predict_Risk</bpmn:incoming>
+      <bpmn:outgoing>Flow_Risk_Monitor</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Monitor" name="Мониторинг инференса: PSI и полнота данных (inference_monitoring.json)">
+      <bpmn:incoming>Flow_Risk_Monitor</bpmn:incoming>
+      <bpmn:outgoing>Flow_Monitor_Drift</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_Drift" name="Дрейф данных (PSI)?">
+      <bpmn:incoming>Flow_Monitor_Drift</bpmn:incoming>
+      <bpmn:outgoing>Flow_Drift_End</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Drift_Investigate</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Drift_Retrain</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Investigate" name="Разбор причин дрейфа, ручная проверка предупреждений">
+      <bpmn:incoming>Flow_Drift_Investigate</bpmn:incoming>
+      <bpmn:outgoing>Flow_Investigate_Predict</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_RetrainDecision" name="Решение о переобучении модели на новых данных">
+      <bpmn:incoming>Flow_Drift_Retrain</bpmn:incoming>
+      <bpmn:outgoing>Flow_Retrain_Train</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_HandedOver" name="Прогнозы и рекомендации переданы в ТОиР">
+      <bpmn:incoming>Flow_Drift_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start_Load" sourceRef="StartEvent_Telemetry" targetRef="Task_Load" />
+    <bpmn:sequenceFlow id="Flow_Load_DataValid" sourceRef="Task_Load" targetRef="Gateway_DataValid" />
+    <bpmn:sequenceFlow id="Flow_DataValid_Fix" name="нет — данные не пригодны" sourceRef="Gateway_DataValid" targetRef="Task_FixData">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">данные_прошли_валидацию == false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Fix_Load" sourceRef="Task_FixData" targetRef="Task_Load" />
+    <bpmn:sequenceFlow id="Flow_DataValid_Features" name="да — данные пригодны" sourceRef="Gateway_DataValid" targetRef="Task_Features">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">данные_прошли_валидацию == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Features_Split" sourceRef="Task_Features" targetRef="Task_Split" />
+    <bpmn:sequenceFlow id="Flow_Split_Train" sourceRef="Task_Split" targetRef="Task_Train" />
+    <bpmn:sequenceFlow id="Flow_Train_Evaluate" sourceRef="Task_Train" targetRef="Task_Evaluate" />
+    <bpmn:sequenceFlow id="Flow_Evaluate_AUC" sourceRef="Task_Evaluate" targetRef="Gateway_AUC" />
+    <bpmn:sequenceFlow id="Flow_AUC_Tune" name="ROC-AUC ниже 0,9 — качества мало" sourceRef="Gateway_AUC" targetRef="Task_Tune">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">roc_auc &lt; 0.9</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Tune_Features" sourceRef="Task_Tune" targetRef="Task_Features" />
+    <bpmn:sequenceFlow id="Flow_AUC_LogRun" name="ROC-AUC не ниже 0,9 — модель принята" sourceRef="Gateway_AUC" targetRef="Task_LogRun">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">roc_auc &gt;= 0.9</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_LogRun_Save" sourceRef="Task_LogRun" targetRef="Task_SaveArtifacts" />
+    <bpmn:sequenceFlow id="Flow_Save_GwModel" sourceRef="Task_SaveArtifacts" targetRef="Gateway_ModelExists" />
+    <bpmn:sequenceFlow id="Flow_GwModel_Train" name="нет — артефакта модели нет" sourceRef="Gateway_ModelExists" targetRef="Task_Train">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">model_exists == false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_GwModel_Predict" name="да — артефакт найден" sourceRef="Gateway_ModelExists" targetRef="Task_Predict">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">model_exists == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Predict_Risk" sourceRef="Task_Predict" targetRef="Task_Risk" />
+    <bpmn:sequenceFlow id="Flow_Risk_Monitor" sourceRef="Task_Risk" targetRef="Task_Monitor" />
+    <bpmn:sequenceFlow id="Flow_Monitor_Drift" sourceRef="Task_Monitor" targetRef="Gateway_Drift" />
+    <bpmn:sequenceFlow id="Flow_Drift_End" name="PSI менее 0,1 — stable" sourceRef="Gateway_Drift" targetRef="End_HandedOver">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">psi &lt; 0.1</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Drift_Investigate" name="0,1 ≤ PSI менее 0,25 — warning" sourceRef="Gateway_Drift" targetRef="Task_Investigate">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">psi &gt;= 0.1 and psi &lt; 0.25</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Drift_Retrain" name="PSI не менее 0,25 — critical" sourceRef="Gateway_Drift" targetRef="Task_RetrainDecision">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">psi &gt;= 0.25</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Investigate_Predict" sourceRef="Task_Investigate" targetRef="Task_Predict" />
+    <bpmn:sequenceFlow id="Flow_Retrain_Train" sourceRef="Task_RetrainDecision" targetRef="Task_Train" />
+    <bpmn:textAnnotation id="Ann_Data">
+      <bpmn:text>Источник: Kaggle Playground S3E17 (predictive maintenance). train.csv ≈ 136 000 строк, test.csv ≈ 91 000 строк; целевой класс Machine failure ≈ 1,6 % (сильный дисбаланс).</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Data" sourceRef="Ann_Data" targetRef="Task_Load" associationDirection="None" />
+    <bpmn:textAnnotation id="Ann_Train">
+      <bpmn:text>CatBoost: loss_function=Logloss, eval_metric=AUC, iterations=500, learning_rate=0,03, depth=8, auto_class_weights=Balanced, early_stopping_rounds=100. Режим --smoke = 5000 строк (используется в CI). Артефакт: artifacts/model.cbm.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Train" sourceRef="Ann_Train" targetRef="Task_Train" associationDirection="None" />
+    <bpmn:textAnnotation id="Ann_Metrics">
+      <bpmn:text>Фактическое качество на hold-out: ROC-AUC 0,934 · recall 0,786 · precision 0,393 · f1 0,524. Порог приёмки в процессе: ROC-AUC ≥ 0,9.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Metrics" sourceRef="Ann_Metrics" targetRef="Task_Evaluate" associationDirection="None" />
+    <bpmn:textAnnotation id="Ann_MLflow">
+      <bpmn:text>Эксперимент machine_failure_prediction (backend SQLite artifacts/mlflow.db, артефакты mlartifacts/). Логируются параметры, метрики и файлы model.cbm, metrics.json, data_quality.json, monitoring_summary.json, plots/.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_MLflow" sourceRef="Ann_MLflow" targetRef="Task_SaveArtifacts" associationDirection="None" />
+    <bpmn:textAnnotation id="Ann_Drift">
+      <bpmn:text>Пороги PSI: менее 0,1 — stable; 0,1…0,25 — warning (разбор причин); 0,25 и более — critical (переобучение). Фактический PSI на test.csv менее 0,001.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Drift" sourceRef="Ann_Drift" targetRef="Gateway_Drift" associationDirection="None" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_MLOps">
+    <bpmndi:BPMNPlane id="BPMNPlane_MLOps" bpmnElement="Collaboration_MLOps">
+      <bpmndi:BPMNShape id="Shape_Participant_MLOps" bpmnElement="Participant_MLOps" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="3400" height="800" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Data" bpmnElement="Lane_Data" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="3370" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_ML" bpmnElement="Lane_ML" isHorizontal="true">
+        <dc:Bounds x="190" y="250" width="3370" height="240" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_MLflow" bpmnElement="Lane_MLflow" isHorizontal="true">
+        <dc:Bounds x="190" y="490" width="3370" height="140" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Ops" bpmnElement="Lane_Ops" isHorizontal="true">
+        <dc:Bounds x="190" y="630" width="3370" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartEvent_Telemetry" bpmnElement="StartEvent_Telemetry">
+        <dc:Bounds x="230" y="147" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Load" bpmnElement="Task_Load">
+        <dc:Bounds x="320" y="125" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_DataValid" bpmnElement="Gateway_DataValid" isMarkerVisible="true">
+        <dc:Bounds x="530" y="140" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_FixData" bpmnElement="Task_FixData">
+        <dc:Bounds x="640" y="125" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Features" bpmnElement="Task_Features">
+        <dc:Bounds x="640" y="290" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Split" bpmnElement="Task_Split">
+        <dc:Bounds x="870" y="290" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Train" bpmnElement="Task_Train">
+        <dc:Bounds x="1100" y="290" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Evaluate" bpmnElement="Task_Evaluate">
+        <dc:Bounds x="1350" y="290" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_AUC" bpmnElement="Gateway_AUC" isMarkerVisible="true">
+        <dc:Bounds x="1600" y="345" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tune" bpmnElement="Task_Tune">
+        <dc:Bounds x="1350" y="400" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_LogRun" bpmnElement="Task_LogRun">
+        <dc:Bounds x="1700" y="520" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SaveArtifacts" bpmnElement="Task_SaveArtifacts">
+        <dc:Bounds x="1950" y="520" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_ModelExists" bpmnElement="Gateway_ModelExists" isMarkerVisible="true">
+        <dc:Bounds x="2230" y="705" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Predict" bpmnElement="Task_Predict">
+        <dc:Bounds x="2320" y="690" width="180" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Risk" bpmnElement="Task_Risk">
+        <dc:Bounds x="2540" y="690" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Monitor" bpmnElement="Task_Monitor">
+        <dc:Bounds x="2800" y="690" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Drift" bpmnElement="Gateway_Drift" isMarkerVisible="true">
+        <dc:Bounds x="3060" y="705" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Investigate" bpmnElement="Task_Investigate">
+        <dc:Bounds x="2800" y="790" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_RetrainDecision" bpmnElement="Task_RetrainDecision">
+        <dc:Bounds x="3060" y="790" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_HandedOver" bpmnElement="End_HandedOver">
+        <dc:Bounds x="3220" y="712" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_Data" bpmnElement="Ann_Data">
+        <dc:Bounds x="900" y="110" width="420" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_Train" bpmnElement="Ann_Train">
+        <dc:Bounds x="1950" y="270" width="520" height="100" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_Metrics" bpmnElement="Ann_Metrics">
+        <dc:Bounds x="1950" y="390" width="520" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_MLflow" bpmnElement="Ann_MLflow">
+        <dc:Bounds x="2400" y="500" width="460" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_Drift" bpmnElement="Ann_Drift">
+        <dc:Bounds x="2400" y="565" width="460" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Start_Load" bpmnElement="Flow_Start_Load">
+        <di:waypoint x="266" y="165" />
+        <di:waypoint x="320" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Load_DataValid" bpmnElement="Flow_Load_DataValid">
+        <di:waypoint x="480" y="165" />
+        <di:waypoint x="530" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_DataValid_Fix" bpmnElement="Flow_DataValid_Fix">
+        <di:waypoint x="580" y="165" />
+        <di:waypoint x="640" y="165" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Fix_Load" bpmnElement="Flow_Fix_Load">
+        <di:waypoint x="740" y="125" />
+        <di:waypoint x="740" y="100" />
+        <di:waypoint x="400" y="100" />
+        <di:waypoint x="400" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_DataValid_Features" bpmnElement="Flow_DataValid_Features">
+        <di:waypoint x="555" y="190" />
+        <di:waypoint x="555" y="240" />
+        <di:waypoint x="730" y="240" />
+        <di:waypoint x="730" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Features_Split" bpmnElement="Flow_Features_Split">
+        <di:waypoint x="820" y="330" />
+        <di:waypoint x="870" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Split_Train" bpmnElement="Flow_Split_Train">
+        <di:waypoint x="1050" y="330" />
+        <di:waypoint x="1100" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Train_Evaluate" bpmnElement="Flow_Train_Evaluate">
+        <di:waypoint x="1300" y="330" />
+        <di:waypoint x="1350" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Evaluate_AUC" bpmnElement="Flow_Evaluate_AUC">
+        <di:waypoint x="1550" y="330" />
+        <di:waypoint x="1585" y="330" />
+        <di:waypoint x="1585" y="370" />
+        <di:waypoint x="1600" y="370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AUC_Tune" bpmnElement="Flow_AUC_Tune">
+        <di:waypoint x="1625" y="395" />
+        <di:waypoint x="1625" y="460" />
+        <di:waypoint x="1550" y="460" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tune_Features" bpmnElement="Flow_Tune_Features">
+        <di:waypoint x="1350" y="440" />
+        <di:waypoint x="600" y="440" />
+        <di:waypoint x="600" y="330" />
+        <di:waypoint x="640" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_AUC_LogRun" bpmnElement="Flow_AUC_LogRun">
+        <di:waypoint x="1650" y="370" />
+        <di:waypoint x="1810" y="370" />
+        <di:waypoint x="1810" y="520" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_LogRun_Save" bpmnElement="Flow_LogRun_Save">
+        <di:waypoint x="1920" y="560" />
+        <di:waypoint x="1950" y="560" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Save_GwModel" bpmnElement="Flow_Save_GwModel">
+        <di:waypoint x="2170" y="560" />
+        <di:waypoint x="2255" y="560" />
+        <di:waypoint x="2255" y="705" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_GwModel_Train" bpmnElement="Flow_GwModel_Train">
+        <di:waypoint x="2230" y="730" />
+        <di:waypoint x="2190" y="730" />
+        <di:waypoint x="2190" y="620" />
+        <di:waypoint x="1200" y="620" />
+        <di:waypoint x="1200" y="370" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_GwModel_Predict" bpmnElement="Flow_GwModel_Predict">
+        <di:waypoint x="2280" y="730" />
+        <di:waypoint x="2320" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Predict_Risk" bpmnElement="Flow_Predict_Risk">
+        <di:waypoint x="2500" y="730" />
+        <di:waypoint x="2540" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Risk_Monitor" bpmnElement="Flow_Risk_Monitor">
+        <di:waypoint x="2760" y="730" />
+        <di:waypoint x="2800" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Monitor_Drift" bpmnElement="Flow_Monitor_Drift">
+        <di:waypoint x="3020" y="730" />
+        <di:waypoint x="3060" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Drift_End" bpmnElement="Flow_Drift_End">
+        <di:waypoint x="3110" y="730" />
+        <di:waypoint x="3220" y="730" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Drift_Investigate" bpmnElement="Flow_Drift_Investigate">
+        <di:waypoint x="3075" y="755" />
+        <di:waypoint x="2910" y="755" />
+        <di:waypoint x="2910" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Drift_Retrain" bpmnElement="Flow_Drift_Retrain">
+        <di:waypoint x="3095" y="755" />
+        <di:waypoint x="3095" y="790" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Investigate_Predict" bpmnElement="Flow_Investigate_Predict">
+        <di:waypoint x="2800" y="830" />
+        <di:waypoint x="2410" y="830" />
+        <di:waypoint x="2410" y="770" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Retrain_Train" bpmnElement="Flow_Retrain_Train">
+        <di:waypoint x="3280" y="830" />
+        <di:waypoint x="3340" y="830" />
+        <di:waypoint x="3340" y="640" />
+        <di:waypoint x="1080" y="640" />
+        <di:waypoint x="1080" y="330" />
+        <di:waypoint x="1100" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Data" bpmnElement="Assoc_Data">
+        <di:waypoint x="1110" y="170" />
+        <di:waypoint x="1110" y="215" />
+        <di:waypoint x="400" y="215" />
+        <di:waypoint x="400" y="125" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Train" bpmnElement="Assoc_Train">
+        <di:waypoint x="1950" y="320" />
+        <di:waypoint x="1300" y="320" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Metrics" bpmnElement="Assoc_Metrics">
+        <di:waypoint x="1950" y="420" />
+        <di:waypoint x="1570" y="420" />
+        <di:waypoint x="1570" y="330" />
+        <di:waypoint x="1550" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_MLflow" bpmnElement="Assoc_MLflow">
+        <di:waypoint x="2400" y="530" />
+        <di:waypoint x="2170" y="530" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Drift" bpmnElement="Assoc_Drift">
+        <di:waypoint x="2860" y="595" />
+        <di:waypoint x="3085" y="595" />
+        <di:waypoint x="3085" y="705" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

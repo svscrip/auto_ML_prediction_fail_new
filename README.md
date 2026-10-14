@@ -65,6 +65,8 @@ flowchart TB
 
 **Поток данных:** CSV → ETL (`load.py`, `features.py`) → обучение CatBoost и логирование в MLflow → инференс на test → прогнозы и рекомендации по обслуживанию.
 
+**Процессные модели (BPMN 2.0):** [`docs/bpmn/mlops-lifecycle.bpmn`](docs/bpmn/mlops-lifecycle.bpmn) — жизненный цикл ML-модели (данные → обучение → MLflow → инференс → мониторинг дрейфа с возвратами на доработку); [`docs/bpmn/ci-cd-release.bpmn`](docs/bpmn/ci-cd-release.bpmn) — CI/CD-релиз (pull request → CI → ревью → тег `v*` → GHCR → Release → развёртывание). Полные описания, Mermaid-зеркала и таблицы трассировки на код: [`docs/bpmn/README.md`](docs/bpmn/README.md).
+
 ---
 
 ## 3. ETL (Extract, Transform, Load)
@@ -494,7 +496,7 @@ auto_ML-prediction_machines_failures/
 ├── tests/                      # pytest
 ├── keis7-main/                 # train.csv, test.csv
 ├── reference-material/         # ноутбуки, задание, исследования
-├── docs/                       # презентация, images/
+├── docs/                       # презентация, images/, bpmn/ (BPMN 2.0 + Mermaid)
 ├── artifacts/                  # модель, метрики, предсказания
 ├── scripts/                    # bootstrap.ps1, activate.ps1, запуск MLflow
 ├── pyproject.toml              # зависимости + конфиг black/isort/pytest

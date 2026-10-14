@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BPMN 2.0 — CI/CD-релиз MLOps-проекта (GitHub Actions, GHCR, Docker Compose).
+  Трассировка: .github/workflows/ci.yml, .github/workflows/cd.yml, Dockerfile,
+  docker-compose.yml, .pre-commit-config.yaml, .github/dependabot.yml, docs/bpmn/README.md.
+  Открыть: bpmn.io, Camunda Modeler, VS Code (bpmn-js), draw.io.
+-->
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_CICD" targetNamespace="http://bpmn.io/schema/bpmn" exporter="handmade-bpmn" exporterVersion="1.0">
+  <bpmn:collaboration id="Collaboration_CICD">
+    <bpmn:participant id="Participant_CICD" name="CI/CD-релиз MLOps-проекта (GitHub Actions + GHCR)" processRef="Process_CICD" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_CICD" name="Выпуск релиза: CI и CD" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_CICD">
+      <bpmn:lane id="Lane_Dev" name="Разработчик">
+        <bpmn:flowNodeRef>StartEvent_Commit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Local</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_OpenPR</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Fix</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Merge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Tag</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_PRClosed</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_CI" name="CI — GitHub Actions (ci.yml)">
+        <bpmn:flowNodeRef>Gateway_FanOut</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Lint</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Test</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_JoinCI</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_DockerBuild</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SmokeTrain</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_SmokePredict</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_CIGreen</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_CD" name="CD — GitHub Actions (cd.yml, GHCR)">
+        <bpmn:flowNodeRef>Task_CDTrigger</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_CDTest</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Login</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_BuildPush</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Release</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Deploy" name="Эксплуатация (Docker Compose)">
+        <bpmn:flowNodeRef>Task_Pull</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Compose</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Verify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Released</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_Commit" name="git push в feature/** или pull request в main">
+      <bpmn:outgoing>Flow_Commit_Local</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Local" name="Локальные проверки: pre-commit (black, isort, flake8) и pytest">
+      <bpmn:incoming>Flow_Commit_Local</bpmn:incoming>
+      <bpmn:incoming>Flow_Fix_Local</bpmn:incoming>
+      <bpmn:outgoing>Flow_Local_OpenPR</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_OpenPR" name="Открыть pull request в main (Conventional Commits)">
+      <bpmn:incoming>Flow_Local_OpenPR</bpmn:incoming>
+      <bpmn:outgoing>Flow_OpenPR_FanOut</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Fix" name="Исправить замечания линтера и упавшие тесты">
+      <bpmn:incoming>Flow_CIGreen_Fix</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fix_Local</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Review" name="Ревью pull request (проверки CI обязательны)">
+      <bpmn:incoming>Flow_CIGreen_Review</bpmn:incoming>
+      <bpmn:outgoing>Flow_Review_ReviewGw</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_Review" name="Ревью одобрено?">
+      <bpmn:incoming>Flow_Review_ReviewGw</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReviewGw_Merge</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ReviewGw_PRClosed</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Task_Merge" name="Squash-merge pull request в main">
+      <bpmn:incoming>Flow_ReviewGw_Merge</bpmn:incoming>
+      <bpmn:outgoing>Flow_Merge_Tag</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Task_Tag" name="Тег SemVer v* на main (например v1.0.0)">
+      <bpmn:incoming>Flow_Merge_Tag</bpmn:incoming>
+      <bpmn:outgoing>Flow_Tag_CDTrigger</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_PRClosed" name="Pull request закрыт без merge">
+      <bpmn:incoming>Flow_ReviewGw_PRClosed</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:parallelGateway id="Gateway_FanOut" name="Запуск CI (ci.yml)">
+      <bpmn:incoming>Flow_OpenPR_FanOut</bpmn:incoming>
+      <bpmn:outgoing>Flow_FanOut_Lint</bpmn:outgoing>
+      <bpmn:outgoing>Flow_FanOut_Test</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_Lint" name="job lint: pre-commit run --all-files --show-diff-on-failure">
+      <bpmn:incoming>Flow_FanOut_Lint</bpmn:incoming>
+      <bpmn:outgoing>Flow_Lint_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Test" name="job test: poetry run pytest + coverage (матрица 3.11 / 3.12 / 3.13)">
+      <bpmn:incoming>Flow_FanOut_Test</bpmn:incoming>
+      <bpmn:outgoing>Flow_Test_Join</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_JoinCI" name="lint и test завершены">
+      <bpmn:incoming>Flow_Lint_Join</bpmn:incoming>
+      <bpmn:incoming>Flow_Test_Join</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_DockerBuild</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_DockerBuild" name="job docker: сборка образа Buildx с кэшем type=gha">
+      <bpmn:incoming>Flow_Join_DockerBuild</bpmn:incoming>
+      <bpmn:outgoing>Flow_DockerBuild_SmokeTrain</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_SmokeTrain" name="smoke-тест обучения: src.train --smoke (5000 строк)">
+      <bpmn:incoming>Flow_DockerBuild_SmokeTrain</bpmn:incoming>
+      <bpmn:outgoing>Flow_SmokeTrain_SmokePredict</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_SmokePredict" name="smoke-тест инференса: src.predict в контейнере">
+      <bpmn:incoming>Flow_SmokeTrain_SmokePredict</bpmn:incoming>
+      <bpmn:outgoing>Flow_SmokePredict_CIGreen</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_CIGreen" name="CI зелёный?">
+      <bpmn:incoming>Flow_SmokePredict_CIGreen</bpmn:incoming>
+      <bpmn:outgoing>Flow_CIGreen_Fix</bpmn:outgoing>
+      <bpmn:outgoing>Flow_CIGreen_Review</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_CDTrigger" name="cd.yml: триггер по тегу v* (job release)">
+      <bpmn:incoming>Flow_Tag_CDTrigger</bpmn:incoming>
+      <bpmn:outgoing>Flow_CDTrigger_CDTest</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_CDTest" name="poetry install и poetry run pytest (страховка перед публикацией)">
+      <bpmn:incoming>Flow_CDTrigger_CDTest</bpmn:incoming>
+      <bpmn:outgoing>Flow_CDTest_Login</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Login" name="docker/login-action: вход в ghcr.io (GITHUB_TOKEN)">
+      <bpmn:incoming>Flow_CDTest_Login</bpmn:incoming>
+      <bpmn:outgoing>Flow_Login_BuildPush</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_BuildPush" name="docker build-push-action: теги :v* и :latest (кэш type=gha)">
+      <bpmn:incoming>Flow_Login_BuildPush</bpmn:incoming>
+      <bpmn:outgoing>Flow_BuildPush_Release</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Release" name="softprops/action-gh-release@v2: GitHub Release и release notes">
+      <bpmn:incoming>Flow_BuildPush_Release</bpmn:incoming>
+      <bpmn:outgoing>Flow_Release_Pull</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Pull" name="docker pull ghcr.io/&lt;owner&gt;/machine-failure-mlops:v*">
+      <bpmn:incoming>Flow_Release_Pull</bpmn:incoming>
+      <bpmn:outgoing>Flow_Pull_Compose</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Compose" name="docker compose up train / predict / mlflow (MLflow UI на порту 5000)">
+      <bpmn:incoming>Flow_Pull_Compose</bpmn:incoming>
+      <bpmn:outgoing>Flow_Compose_Verify</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Verify" name="Проверка predictions.csv и inference_monitoring.json после релиза">
+      <bpmn:incoming>Flow_Compose_Verify</bpmn:incoming>
+      <bpmn:outgoing>Flow_Verify_Released</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Released" name="Релиз v* развёрнут: прогнозы и мониторинг доступны">
+      <bpmn:incoming>Flow_Verify_Released</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Commit_Local" sourceRef="StartEvent_Commit" targetRef="Task_Local" />
+    <bpmn:sequenceFlow id="Flow_Local_OpenPR" sourceRef="Task_Local" targetRef="Task_OpenPR" />
+    <bpmn:sequenceFlow id="Flow_OpenPR_FanOut" sourceRef="Task_OpenPR" targetRef="Gateway_FanOut" />
+    <bpmn:sequenceFlow id="Flow_FanOut_Lint" sourceRef="Gateway_FanOut" targetRef="Task_Lint" />
+    <bpmn:sequenceFlow id="Flow_FanOut_Test" sourceRef="Gateway_FanOut" targetRef="Task_Test" />
+    <bpmn:sequenceFlow id="Flow_Lint_Join" sourceRef="Task_Lint" targetRef="Gateway_JoinCI" />
+    <bpmn:sequenceFlow id="Flow_Test_Join" sourceRef="Task_Test" targetRef="Gateway_JoinCI" />
+    <bpmn:sequenceFlow id="Flow_Join_DockerBuild" sourceRef="Gateway_JoinCI" targetRef="Task_DockerBuild" />
+    <bpmn:sequenceFlow id="Flow_DockerBuild_SmokeTrain" sourceRef="Task_DockerBuild" targetRef="Task_SmokeTrain" />
+    <bpmn:sequenceFlow id="Flow_SmokeTrain_SmokePredict" sourceRef="Task_SmokeTrain" targetRef="Task_SmokePredict" />
+    <bpmn:sequenceFlow id="Flow_SmokePredict_CIGreen" sourceRef="Task_SmokePredict" targetRef="Gateway_CIGreen" />
+    <bpmn:sequenceFlow id="Flow_CIGreen_Fix" name="нет — хотя бы один job красный" sourceRef="Gateway_CIGreen" targetRef="Task_Fix">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">ci_status == "failed"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Fix_Local" sourceRef="Task_Fix" targetRef="Task_Local" />
+    <bpmn:sequenceFlow id="Flow_CIGreen_Review" name="да — все job-ы зелёные" sourceRef="Gateway_CIGreen" targetRef="Task_Review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">ci_status == "success"</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Review_ReviewGw" sourceRef="Task_Review" targetRef="Gateway_Review" />
+    <bpmn:sequenceFlow id="Flow_ReviewGw_Merge" name="да — одобрено" sourceRef="Gateway_Review" targetRef="Task_Merge">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">review_approved == true</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ReviewGw_PRClosed" name="нет — доработка не требуется" sourceRef="Gateway_Review" targetRef="End_PRClosed">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">review_approved == false</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_Merge_Tag" sourceRef="Task_Merge" targetRef="Task_Tag" />
+    <bpmn:sequenceFlow id="Flow_Tag_CDTrigger" name="тег v* — запуск cd.yml" sourceRef="Task_Tag" targetRef="Task_CDTrigger" />
+    <bpmn:sequenceFlow id="Flow_CDTrigger_CDTest" sourceRef="Task_CDTrigger" targetRef="Task_CDTest" />
+    <bpmn:sequenceFlow id="Flow_CDTest_Login" sourceRef="Task_CDTest" targetRef="Task_Login" />
+    <bpmn:sequenceFlow id="Flow_Login_BuildPush" sourceRef="Task_Login" targetRef="Task_BuildPush" />
+    <bpmn:sequenceFlow id="Flow_BuildPush_Release" sourceRef="Task_BuildPush" targetRef="Task_Release" />
+    <bpmn:sequenceFlow id="Flow_Release_Pull" name="образ в GHCR" sourceRef="Task_Release" targetRef="Task_Pull" />
+    <bpmn:sequenceFlow id="Flow_Pull_Compose" sourceRef="Task_Pull" targetRef="Task_Compose" />
+    <bpmn:sequenceFlow id="Flow_Compose_Verify" sourceRef="Task_Compose" targetRef="Task_Verify" />
+    <bpmn:sequenceFlow id="Flow_Verify_Released" sourceRef="Task_Verify" targetRef="End_Released" />
+    <bpmn:textAnnotation id="Ann_Rules">
+      <bpmn:text>Правила процесса: изменение кода — только через pull request (Conventional Commits); merge в main — squash; релиз выпускается исключительно по тегу SemVer v* при зелёном CI и одобренном ревью; dependabot.yml обновляет зависимости и исключает пути артефактов.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Rules" sourceRef="Ann_Rules" targetRef="Task_OpenPR" associationDirection="None" />
+    <bpmn:textAnnotation id="Ann_CI">
+      <bpmn:text>ci.yml: on push (main, master, feature/**) и pull_request → main; concurrency с cancel-in-progress. Job lint (Python 3.11) — pre-commit run --all-files с кэшем ~/.cache/pre-commit; job test — матрица Python 3.11 / 3.12 / 3.13, poetry install, pytest с coverage.xml; job docker — needs: [lint, test], Buildx и кэш type=gha.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_CI" sourceRef="Ann_CI" targetRef="Gateway_CIGreen" associationDirection="None" />
+    <bpmn:textAnnotation id="Ann_Smoke">
+      <bpmn:text>Смок-проверки в контейнере: docker run --rm -v mlops-artifacts:/app/artifacts machine-failure-mlops:latest src.train --smoke (5000 строк), затем src.predict. Артефакты складываются в том mlops-artifacts.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Smoke" sourceRef="Ann_Smoke" targetRef="Task_SmokeTrain" associationDirection="None" />
+    <bpmn:textAnnotation id="Ann_CD">
+      <bpmn:text>cd.yml: on push tags v*; права contents: write и packages: write. Job release — poetry install, poetry run pytest, docker/login-action в ghcr.io, docker build-push-action (ghcr.io/&lt;owner&gt;/machine-failure-mlops:${ref_name} и :latest), softprops/action-gh-release@v2 с generate_release_notes.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Assoc_CD" sourceRef="Ann_CD" targetRef="Task_CDTrigger" associationDirection="None" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_CICD">
+    <bpmndi:BPMNPlane id="BPMNPlane_CICD" bpmnElement="Collaboration_CICD">
+      <bpmndi:BPMNShape id="Shape_Participant_CICD" bpmnElement="Participant_CICD" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="5480" height="900" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Dev" bpmnElement="Lane_Dev" isHorizontal="true">
+        <dc:Bounds x="190" y="80" width="5450" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_CI" bpmnElement="Lane_CI" isHorizontal="true">
+        <dc:Bounds x="190" y="360" width="5450" height="280" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_CD" bpmnElement="Lane_CD" isHorizontal="true">
+        <dc:Bounds x="190" y="640" width="5450" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Lane_Deploy" bpmnElement="Lane_Deploy" isHorizontal="true">
+        <dc:Bounds x="190" y="810" width="5450" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StartEvent_Commit" bpmnElement="StartEvent_Commit">
+        <dc:Bounds x="230" y="152" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Local" bpmnElement="Task_Local">
+        <dc:Bounds x="330" y="130" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_OpenPR" bpmnElement="Task_OpenPR">
+        <dc:Bounds x="600" y="130" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Fix" bpmnElement="Task_Fix">
+        <dc:Bounds x="330" y="250" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Review" bpmnElement="Task_Review">
+        <dc:Bounds x="2350" y="130" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_Review" bpmnElement="Gateway_Review" isMarkerVisible="true">
+        <dc:Bounds x="2590" y="145" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Merge" bpmnElement="Task_Merge">
+        <dc:Bounds x="2680" y="130" width="200" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Tag" bpmnElement="Task_Tag">
+        <dc:Bounds x="2920" y="130" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_PRClosed" bpmnElement="End_PRClosed">
+        <dc:Bounds x="2820" y="272" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_FanOut" bpmnElement="Gateway_FanOut">
+        <dc:Bounds x="700" y="425" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Lint" bpmnElement="Task_Lint">
+        <dc:Bounds x="830" y="410" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Test" bpmnElement="Task_Test">
+        <dc:Bounds x="830" y="510" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_JoinCI" bpmnElement="Gateway_JoinCI">
+        <dc:Bounds x="1140" y="425" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_DockerBuild" bpmnElement="Task_DockerBuild">
+        <dc:Bounds x="1250" y="410" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SmokeTrain" bpmnElement="Task_SmokeTrain">
+        <dc:Bounds x="1570" y="410" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_SmokePredict" bpmnElement="Task_SmokePredict">
+        <dc:Bounds x="1890" y="410" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Gateway_CIGreen" bpmnElement="Gateway_CIGreen" isMarkerVisible="true">
+        <dc:Bounds x="2210" y="425" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CDTrigger" bpmnElement="Task_CDTrigger">
+        <dc:Bounds x="3120" y="685" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_CDTest" bpmnElement="Task_CDTest">
+        <dc:Bounds x="3400" y="685" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Login" bpmnElement="Task_Login">
+        <dc:Bounds x="3680" y="685" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_BuildPush" bpmnElement="Task_BuildPush">
+        <dc:Bounds x="3960" y="685" width="260" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Release" bpmnElement="Task_Release">
+        <dc:Bounds x="4280" y="685" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Pull" bpmnElement="Task_Pull">
+        <dc:Bounds x="4560" y="855" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Compose" bpmnElement="Task_Compose">
+        <dc:Bounds x="4840" y="855" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_Verify" bpmnElement="Task_Verify">
+        <dc:Bounds x="5140" y="855" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_End_Released" bpmnElement="End_Released">
+        <dc:Bounds x="5440" y="877" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_Rules" bpmnElement="Ann_Rules">
+        <dc:Bounds x="1100" y="250" width="1000" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_CI" bpmnElement="Ann_CI">
+        <dc:Bounds x="2400" y="390" width="560" height="110" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_Smoke" bpmnElement="Ann_Smoke">
+        <dc:Bounds x="1500" y="500" width="560" height="110" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Ann_CD" bpmnElement="Ann_CD">
+        <dc:Bounds x="2400" y="660" width="560" height="110" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_Commit_Local" bpmnElement="Flow_Commit_Local">
+        <di:waypoint x="266" y="170" />
+        <di:waypoint x="330" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Local_OpenPR" bpmnElement="Flow_Local_OpenPR">
+        <di:waypoint x="530" y="170" />
+        <di:waypoint x="600" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_OpenPR_FanOut" bpmnElement="Flow_OpenPR_FanOut">
+        <di:waypoint x="700" y="210" />
+        <di:waypoint x="700" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_FanOut_Lint" bpmnElement="Flow_FanOut_Lint">
+        <di:waypoint x="750" y="450" />
+        <di:waypoint x="830" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_FanOut_Test" bpmnElement="Flow_FanOut_Test">
+        <di:waypoint x="725" y="475" />
+        <di:waypoint x="725" y="550" />
+        <di:waypoint x="830" y="550" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Lint_Join" bpmnElement="Flow_Lint_Join">
+        <di:waypoint x="1090" y="450" />
+        <di:waypoint x="1140" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Test_Join" bpmnElement="Flow_Test_Join">
+        <di:waypoint x="1090" y="550" />
+        <di:waypoint x="1165" y="550" />
+        <di:waypoint x="1165" y="475" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Join_DockerBuild" bpmnElement="Flow_Join_DockerBuild">
+        <di:waypoint x="1190" y="450" />
+        <di:waypoint x="1250" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_DockerBuild_SmokeTrain" bpmnElement="Flow_DockerBuild_SmokeTrain">
+        <di:waypoint x="1510" y="450" />
+        <di:waypoint x="1570" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SmokeTrain_SmokePredict" bpmnElement="Flow_SmokeTrain_SmokePredict">
+        <di:waypoint x="1830" y="450" />
+        <di:waypoint x="1890" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_SmokePredict_CIGreen" bpmnElement="Flow_SmokePredict_CIGreen">
+        <di:waypoint x="2150" y="450" />
+        <di:waypoint x="2210" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CIGreen_Fix" bpmnElement="Flow_CIGreen_Fix">
+        <di:waypoint x="2225" y="425" />
+        <di:waypoint x="2225" y="340" />
+        <di:waypoint x="430" y="340" />
+        <di:waypoint x="430" y="330" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Fix_Local" bpmnElement="Flow_Fix_Local">
+        <di:waypoint x="430" y="250" />
+        <di:waypoint x="430" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CIGreen_Review" bpmnElement="Flow_CIGreen_Review">
+        <di:waypoint x="2235" y="425" />
+        <di:waypoint x="2235" y="110" />
+        <di:waypoint x="2450" y="110" />
+        <di:waypoint x="2450" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Review_ReviewGw" bpmnElement="Flow_Review_ReviewGw">
+        <di:waypoint x="2550" y="170" />
+        <di:waypoint x="2590" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ReviewGw_Merge" bpmnElement="Flow_ReviewGw_Merge">
+        <di:waypoint x="2640" y="170" />
+        <di:waypoint x="2680" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_ReviewGw_PRClosed" bpmnElement="Flow_ReviewGw_PRClosed">
+        <di:waypoint x="2615" y="195" />
+        <di:waypoint x="2615" y="290" />
+        <di:waypoint x="2820" y="290" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Merge_Tag" bpmnElement="Flow_Merge_Tag">
+        <di:waypoint x="2880" y="170" />
+        <di:waypoint x="2920" y="170" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Tag_CDTrigger" bpmnElement="Flow_Tag_CDTrigger">
+        <di:waypoint x="3030" y="210" />
+        <di:waypoint x="3030" y="725" />
+        <di:waypoint x="3120" y="725" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CDTrigger_CDTest" bpmnElement="Flow_CDTrigger_CDTest">
+        <di:waypoint x="3340" y="725" />
+        <di:waypoint x="3400" y="725" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_CDTest_Login" bpmnElement="Flow_CDTest_Login">
+        <di:waypoint x="3620" y="725" />
+        <di:waypoint x="3680" y="725" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Login_BuildPush" bpmnElement="Flow_Login_BuildPush">
+        <di:waypoint x="3900" y="725" />
+        <di:waypoint x="3960" y="725" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_BuildPush_Release" bpmnElement="Flow_BuildPush_Release">
+        <di:waypoint x="4220" y="725" />
+        <di:waypoint x="4280" y="725" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Release_Pull" bpmnElement="Flow_Release_Pull">
+        <di:waypoint x="4390" y="765" />
+        <di:waypoint x="4390" y="895" />
+        <di:waypoint x="4560" y="895" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Pull_Compose" bpmnElement="Flow_Pull_Compose">
+        <di:waypoint x="4780" y="895" />
+        <di:waypoint x="4840" y="895" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Compose_Verify" bpmnElement="Flow_Compose_Verify">
+        <di:waypoint x="5080" y="895" />
+        <di:waypoint x="5140" y="895" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_Verify_Released" bpmnElement="Flow_Verify_Released">
+        <di:waypoint x="5380" y="895" />
+        <di:waypoint x="5440" y="895" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Rules" bpmnElement="Assoc_Rules">
+        <di:waypoint x="1100" y="290" />
+        <di:waypoint x="660" y="290" />
+        <di:waypoint x="660" y="210" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_CI" bpmnElement="Assoc_CI">
+        <di:waypoint x="2400" y="450" />
+        <di:waypoint x="2260" y="450" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_Smoke" bpmnElement="Assoc_Smoke">
+        <di:waypoint x="1700" y="500" />
+        <di:waypoint x="1700" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Assoc_CD" bpmnElement="Assoc_CD">
+        <di:waypoint x="2960" y="715" />
+        <di:waypoint x="3120" y="715" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
