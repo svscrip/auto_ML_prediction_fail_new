@@ -496,7 +496,7 @@ auto_ML-prediction_machines_failures/
 ├── tests/                      # pytest
 ├── keis7-main/                 # train.csv, test.csv
 ├── reference-material/         # ноутбуки, задание, исследования
-├── docs/                       # презентация, images/, bpmn/ (BPMN 2.0 + Mermaid)
+├── docs/                       # презентация, images/, bpmn/ (BPMN 2.0 + Mermaid + PNG)
 ├── artifacts/                  # модель, метрики, предсказания
 ├── scripts/                    # bootstrap.ps1, activate.ps1, запуск MLflow
 ├── pyproject.toml              # зависимости + конфиг black/isort/pytest

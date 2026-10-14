@@ -10,6 +10,10 @@
 | [`mlops-lifecycle.bpmn`](mlops-lifecycle.bpmn) | Жизненный цикл ML-модели: данные → признаки → обучение → MLflow → инференс → мониторинг дрейфа | Данные и ETL · ML-инженер · MLflow · Эксплуатация |
 | [`ci-cd-release.bpmn`](ci-cd-release.bpmn) | CI/CD-релиз: pull request → CI → ревью → тег `v*` → GHCR → GitHub Release → развёртывание | Разработчик · CI · CD · Эксплуатация |
 
+Растровые превью (сгенерированы из `.bpmn` командой `bpmn-to-image`):
+[`mlops-lifecycle.png`](mlops-lifecycle.png) (3400×800) и
+[`ci-cd-release.png`](ci-cd-release.png) (5480×900).
+
 ## Как открыть и экспортировать
 
 | Инструмент | Действие |
@@ -19,14 +23,42 @@
 | VS Code | расширение `bpmn-js` (просмотр и редактирование) |
 | draw.io | `File → Open From → Device` |
 
-Экспорт картинок из командной строки (нужен Node.js):
+Экспорт картинок из командной строки (нужен Node.js). В аргументе исходник и результат
+разделяются **точкой с запятой** — `<файл.bpmn>;<результат.png>`, поэтому аргумент берётся
+в кавычках:
 
 ```bash
-npx bpmn-to-image mlops-lifecycle.bpmn:mlops-lifecycle.png
-npx bpmn-to-image ci-cd-release.bpmn:ci-cd-release.png
+# одна диаграмма
+npx bpmn-to-image "docs/bpmn/mlops-lifecycle.bpmn;docs/bpmn/mlops-lifecycle.png"
+
+# обе диаграммы, без футера bpmn.io
+npx bpmn-to-image --no-footer "docs/bpmn/mlops-lifecycle.bpmn;docs/bpmn/mlops-lifecycle.png" "docs/bpmn/ci-cd-release.bpmn;docs/bpmn/ci-cd-release.png"
 ```
 
+Чтобы не скачивать Chromium (~300 МБ), можно указать уже установленный Chrome или Edge:
+
+```bash
+# bash / Git Bash
+PUPPETEER_SKIP_DOWNLOAD=true \
+PUPPETEER_EXECUTABLE_PATH="/c/Program Files/Google/Chrome/Application/chrome.exe" \
+npx bpmn-to-image --no-footer "docs/bpmn/mlops-lifecycle.bpmn;docs/bpmn/mlops-lifecycle.png"
+```
+
+```powershell
+# PowerShell
+$env:PUPPETEER_SKIP_DOWNLOAD='true'
+$env:PUPPETEER_EXECUTABLE_PATH='C:\Program Files\Google\Chrome\Application\chrome.exe'
+npx bpmn-to-image --no-footer "docs/bpmn/mlops-lifecycle.bpmn;docs/bpmn/mlops-lifecycle.png"
+```
+
+Готовые PNG (`mlops-lifecycle.png`, `ci-cd-release.png`) лежат в этой папке и вставлены
+в разделы 1 и 2.
+
 ## 1. Жизненный цикл ML-модели
+
+Рендер диаграммы в PNG (клик по картинке открывает её в полном размере, 3400×800):
+
+[![Жизненный цикл ML-модели: BPMN-диаграмма](mlops-lifecycle.png)](mlops-lifecycle.png)
 
 Mermaid-зеркало диаграммы `mlops-lifecycle.bpmn` (рендерится прямо в GitHub):
 
@@ -75,6 +107,10 @@ flowchart LR
 | `Gateway_Drift` | Дрейф данных (PSI)? | stable → выдача результата, warning → разбор, critical → переобучение | `PSI_STABLE = 0.1`, `PSI_WARNING = 0.25` (`src/monitoring.py`) |
 
 ## 2. CI/CD-релиз
+
+Рендер диаграммы в PNG (клик по картинке открывает её в полном размере, 5480×900):
+
+[![CI/CD-релиз: BPMN-диаграмма](ci-cd-release.png)](ci-cd-release.png)
 
 Mermaid-зеркало диаграммы `ci-cd-release.bpmn`:
 
@@ -211,5 +247,6 @@ flowchart LR
 
 1. Изменение процесса (новый job в CI, новый порог, новый шаг) — внести в соответствующий `.bpmn` через [demo.bpmn.io](https://demo.bpmn.io/) или Camunda Modeler.
 2. Синхронизировать Mermaid-зеркало и таблицы трассировки в этом файле.
-3. Проверить хуки: `pre-commit run --files docs/bpmn/mlops-lifecycle.bpmn docs/bpmn/ci-cd-release.bpmn docs/bpmn/README.md` (контролируются `trailing-whitespace` и `end-of-file-fixer`).
-4. Коммит в стиле Conventional Commits: `docs(bpmn): ...`.
+3. Пересобрать PNG-превью: `npx bpmn-to-image --no-footer "docs/bpmn/mlops-lifecycle.bpmn;docs/bpmn/mlops-lifecycle.png"` (аналогично для `ci-cd-release.bpmn`).
+4. Проверить хуки: `pre-commit run --files docs/bpmn/mlops-lifecycle.bpmn docs/bpmn/ci-cd-release.bpmn docs/bpmn/README.md` (контролируются `trailing-whitespace` и `end-of-file-fixer`).
+5. Коммит в стиле Conventional Commits: `docs(bpmn): ...`.
