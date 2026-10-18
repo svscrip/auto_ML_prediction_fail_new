@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # MLflow tracking server for local demos.
 # Keep this version in sync with mlflow in pyproject.toml / poetry.lock.
