@@ -57,6 +57,10 @@ TRAIN_TEST_SIZE = 0.2
 RANDOM_STATE = 42
 SMOKE_SAMPLE_SIZE = 5000
 
+# Probability threshold used to turn scores into the binary "failure" class.
+# It is logged to MLflow and documented in the model card.
+DECISION_THRESHOLD = 0.5
+
 RISK_THRESHOLDS = {
     "low": 0.45,
     "medium": 0.50,

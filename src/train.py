@@ -21,6 +21,7 @@ from src.config import (
     ARTIFACTS_DIR,
     CAT_FEATURES,
     CATBOOST_PARAMS,
+    DECISION_THRESHOLD,
     RANDOM_STATE,
     SMOKE_SAMPLE_SIZE,
     TRAIN_TEST_SIZE,
@@ -80,6 +81,7 @@ def train_model(
             mlflow.log_param(key, value)
         mlflow.log_param("sample_size", sample_size or len(df))
         mlflow.log_param("n_features", len(X.columns))
+        mlflow.log_param("decision_threshold", DECISION_THRESHOLD)
 
         model = CatBoostClassifier(**CATBOOST_PARAMS)
         model.fit(train_pool, eval_set=val_pool, use_best_model=True)
@@ -88,7 +90,7 @@ def train_model(
         mlflow.log_metric("train_time_sec", train_time)
 
         y_proba = model.predict_proba(X_val)[:, 1]
-        y_pred = (y_proba >= 0.5).astype(int)
+        y_pred = (y_proba >= DECISION_THRESHOLD).astype(int)
 
         metrics = {
             "accuracy": float(accuracy_score(y_val, y_pred)),
