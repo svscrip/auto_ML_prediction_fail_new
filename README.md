@@ -143,12 +143,13 @@ flowchart TB
 **Генерация и проверка карточки:**
 
 ```bash
-poetry run python -m src.model_card --output artifacts/model_card_metrics.json
-poetry run python -m src.model_card --write docs/model-card.md
+poetry run python -m src.model_card --output artifacts/model_card_metrics.json --write docs/model-card.md
 poetry run python -m src.model_card --check docs/model-card.md
 ```
 
-`--check` возвращает ненулевой код, если блок между маркерами `<!-- model-card:... -->` устарел; эта же проверка выполняется в pytest.
+`--output` вместе с `--write` считает метрики один раз и рендерит блоки из этого же снимка; без `--output` используется `--metrics` (по умолчанию — `artifacts/model_card_metrics.json`, а при его отсутствии — `artifacts/example_model_card_metrics.json`). `--check` возвращает ненулевой код, если блок между маркерами `<!-- model-card:... -->` устарел; эта же проверка выполняется в pytest.
+
+Чтобы обновить публикуемый снимок для тестов, скопируйте свежий файл: `Copy-Item artifacts/model_card_metrics.json artifacts/example_model_card_metrics.json -Force` (PowerShell).
 
 ---
 

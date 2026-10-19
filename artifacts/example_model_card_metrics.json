@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-10-19T19:31:36+00:00",
+  "generated_at": "2026-10-19T19:33:44+00:00",
   "decision_threshold": 0.5,
   "model": {
     "algorithm": "CatBoostClassifier",
@@ -275,8 +275,8 @@
     }
   },
   "git": {
-    "sha": "d14b34fbf2199f77ba90ae2c1241d82d6443e247",
-    "short_sha": "d14b34f",
+    "sha": "63ef1db09a9fd5540c2741ded62517becdbff24a",
+    "short_sha": "63ef1db",
     "branch": "main",
     "dirty": false
   }
