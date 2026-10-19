@@ -98,6 +98,8 @@ flowchart TB
 
 Конфигурация: [`src/config.py`](src/config.py).
 
+**Model Card:** [`docs/model-card.md`](docs/model-card.md) — карточка модели по девяти разделам Mitchell (Model Details, Intended Use, Factors, Metrics, Evaluation Data, Training Data, Quantitative Analyses, Ethical Considerations, Caveats and Recommendations). Источник данных карточки — [`docs/model-card.yaml`](docs/model-card.yaml), таблицы генерируются из JSON-снимка [`artifacts/example_model_card_metrics.json`](artifacts/example_model_card_metrics.json).
+
 ---
 
 ## 5. Метрики модели
@@ -135,6 +137,18 @@ flowchart TB
 | Rotational speed [rpm] | 10,68 |
 | air_mass | 9,97 |
 | Tool wear [min] | 9,87 |
+
+> **Полный прогон vs smoke.** Таблица выше — smoke-прогон на 5 000 строк. Метрики полного прогона на hold-out (27 223 строки, 430 отказов) — **ROC-AUC 0,970 · recall 0,863 · precision 0,277 · F1 0,420 · accuracy 0,962**; они зафиксированы в [Model Card](docs/model-card.md). Расхождение с CV-ориентиром объясняется тем, что флаги отказов TWF/HDF/PWF/OSF/RNF входят в признаки модели (см. §4), поэтому flagged-отказы детектируются почти идеально, а recall на строках без флага — 41,6%.
+
+**Генерация и проверка карточки:**
+
+```bash
+poetry run python -m src.model_card --output artifacts/model_card_metrics.json
+poetry run python -m src.model_card --write docs/model-card.md
+poetry run python -m src.model_card --check docs/model-card.md
+```
+
+`--check` возвращает ненулевой код, если блок между маркерами `<!-- model-card:... -->` устарел; эта же проверка выполняется в pytest.
 
 ---
 
@@ -257,6 +271,7 @@ pytest -q -m slow          # полный smoke на 5000 строк
 | `tests/test_load.py` | Схема train.csv |
 | `tests/test_features.py` | Формулы Power, efficiency |
 | `tests/test_train.py` | Smoke-обучение и метрики |
+| `tests/test_model_card.py` | Актуальность Model Card: разделы Mitchell, метрики, маркеры и внутренние ссылки |
 
 ---
 
@@ -483,6 +498,7 @@ poetry install
 poetry run python -m src.train          # полное обучение
 poetry run python -m src.train --smoke  # быстрый smoke-прогон
 poetry run python -m src.predict
+poetry run python -m src.model_card --output artifacts/model_card_metrics.json
 ```
 
 Активация окружения вручную: `.\scripts\activate.ps1` (Windows) или
@@ -492,11 +508,11 @@ poetry run python -m src.predict
 
 ```
 auto_ML-prediction_machines_failures/
-├── src/                        # пайплайн (etl/, train, predict, monitoring, plots)
+├── src/                        # пайплайн (etl/, train, predict, monitoring, plots, model_card)
 ├── tests/                      # pytest
 ├── keis7-main/                 # train.csv, test.csv
 ├── reference-material/         # ноутбуки, задание, исследования
-├── docs/                       # презентация, images/, bpmn/ (BPMN 2.0 + Mermaid + PNG)
+├── docs/                       # презентация, model-card.md + model-card.yaml, images/, bpmn/ (BPMN 2.0 + Mermaid + PNG)
 ├── artifacts/                  # модель, метрики, предсказания
 ├── scripts/                    # bootstrap.ps1, activate.ps1, запуск MLflow
 ├── pyproject.toml              # зависимости + конфиг black/isort/pytest
