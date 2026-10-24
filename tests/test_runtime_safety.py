@@ -1,5 +1,6 @@
 """Regression tests for boundary cases in inference, input and monitoring."""
 
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -9,8 +10,14 @@ import pytest
 
 from src import mlflow_setup
 from src.etl.load import load_train, validate_schema
-from src.monitoring import interpret_psi, population_stability_index
+from src.monitoring import (
+    compute_data_quality_report,
+    interpret_psi,
+    population_stability_index,
+    save_monitoring_report,
+)
 from src.predict import assign_risk_level_vector
+from src.train import train_model
 
 
 def test_risk_ties_preserve_index_and_do_not_invent_high_risk():
@@ -106,3 +113,28 @@ def test_mlflow_reuses_matching_experiment(tmp_path, monkeypatch):
     mlflow_setup.setup_mlflow()
     fake.create_experiment.assert_not_called()
     fake.set_experiment.assert_called_once()
+
+
+def test_single_row_quality_report_is_valid_json(tmp_path):
+    report = compute_data_quality_report(load_train().head(1))
+    assert report["std_Torque [Nm]"] is None
+    path = tmp_path / "report.json"
+    save_monitoring_report(report, path)
+    assert json.loads(path.read_text(encoding="utf-8")) == report
+    json.dumps(report, allow_nan=False)
+
+
+def test_invalid_monitoring_report_does_not_overwrite_previous(tmp_path):
+    path = tmp_path / "report.json"
+    path.write_text('{"previous": true}', encoding="utf-8")
+    with pytest.raises(ValueError):
+        save_monitoring_report({"psi": np.nan}, path)
+    assert json.loads(path.read_text(encoding="utf-8")) == {"previous": True}
+
+
+@pytest.mark.parametrize("size", [0, -1, True, 1.5])
+def test_invalid_sample_size_fails_before_side_effects(size, tmp_path):
+    output = tmp_path / "training"
+    with pytest.raises(ValueError, match="positive integer"):
+        train_model(sample_size=size, output_dir=output)
+    assert not output.exists()

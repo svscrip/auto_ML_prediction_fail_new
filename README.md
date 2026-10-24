@@ -17,6 +17,19 @@
 | 3. Процесс переобучения | [Model_retrain_BPMN.md](Model_retrain_BPMN.md) |
 | Индивидуальная защита | [Речь, демонстрация и ответы на вопросы](docs/defense.md) |
 
+## Независимая перепроверка
+
+[Задание другой нейросети и критерии аудита](docs/AI_REVIEW.md).
+
+```powershell
+poetry run python scripts/review_project.py verify
+poetry run python scripts/review_project.py bundle --verification artifacts/review/verification-ИМЯ_ПРОГОНА
+```
+
+Первая команда создаёт логи и JSON-протокол в отдельном хранилище, вторая —
+TXT и ZIP для передачи другому рецензенту. Путь прогона выводится после проверки.
+Автоматической отправки внешним сервисам нет.
+
 ## Что делает проект
 
 Пакетный Python-пайплайн загружает `train.csv` / `test.csv`, проверяет данные,

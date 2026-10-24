@@ -1,7 +1,6 @@
 """Inference and business recommendations."""
 
 import argparse
-import json
 from pathlib import Path
 
 import pandas as pd
@@ -15,7 +14,11 @@ from src.config import (
 )
 from src.etl.features import build_features, get_feature_matrix
 from src.etl.load import load_test, load_train
-from src.monitoring import compare_distributions, compute_data_quality_report
+from src.monitoring import (
+    compare_distributions,
+    compute_data_quality_report,
+    save_monitoring_report,
+)
 
 
 def assign_risk_level_vector(probs: pd.Series) -> pd.Series:
@@ -104,8 +107,7 @@ def predict(
             "drift": drift,
             "test_quality": compute_data_quality_report(test_df, "test"),
         }
-        with open(output_dir / "inference_monitoring.json", "w", encoding="utf-8") as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
+        save_monitoring_report(report, output_dir / "inference_monitoring.json")
 
     return result
 

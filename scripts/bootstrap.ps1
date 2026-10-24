@@ -1,21 +1,14 @@
-# Bootstrap development environment: install Poetry and build a per-project .venv
-$ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-Set-Location $Root
-
+# Reproduce the locked environment. Install Poetry separately if unavailable.
+$ErrorActionPreference = 'Stop'
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+Set-Location -LiteralPath $ProjectRoot
 if (-not (Get-Command poetry -ErrorAction SilentlyContinue)) {
-    Write-Host "Poetry not found. Installing with pip..."
-    pip install --user poetry
+    throw 'Poetry is required. Install Poetry 2.x, reopen the shell, and retry.'
 }
-
-# Force a per-project virtual environment (<repo>\.venv), ignored by git.
-poetry config virtualenvs.in-project true --local
-
-Write-Host "=== poetry install ==="
-poetry install
-
-Write-Host ""
-Write-Host "Done. Activate the environment:"
-Write-Host "  .\.venv\Scripts\Activate.ps1        (PowerShell)"
-Write-Host "  or run commands via: poetry run <cmd>"
-Write-Host "Install git hooks: poetry run pre-commit install"
+poetry check --lock
+if ($LASTEXITCODE -ne 0) { throw 'Poetry configuration/lock check failed.' }
+poetry sync --with dev --no-interaction
+if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
+poetry run pre-commit install
+if ($LASTEXITCODE -ne 0) { throw 'Git hook installation failed.' }
+Write-Host 'Ready. Run commands with poetry run, or activate .venv\Scripts\Activate.ps1.'

@@ -25,6 +25,7 @@ def test_submission_links_resolve():
         "Model_BPMN.md",
         "Model_retrain_BPMN.md",
         "docs/assignments.md",
+        "docs/AI_REVIEW.md",
         "docs/defense.md",
         "docs/presentation.md",
     ]:

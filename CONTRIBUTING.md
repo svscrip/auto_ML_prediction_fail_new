@@ -30,7 +30,7 @@ poetry sync --with dev
 Либо одной командой через скрипт-хелпер:
 
 ```powershell
-.\scripts\bootstrap.ps1     # установка Poetry + poetry sync --with dev
+.\scripts\bootstrap.ps1     # проверка lock + poetry sync + установка хуков
 .\scripts\activate.ps1      # активация .venv
 ```
 
@@ -96,14 +96,15 @@ poetry run pytest -q -m slow         # полный smoke-тест обучен�
 poetry run pytest -q --cov=src       # с покрытием
 ```
 
-Пометкой `@pytest.mark.slow` отмечены долгие тесты (полное обучение);
+Пометкой `@pytest.mark.slow` отмечено smoke-обучение на 5 000 строках;
+это не обучение на всём датасете. Такие тесты
 по умолчанию они исключаются через `addopts`.
 
 ## 6. Git workflow
 
-- Базовая ветка — `main`.
-- Новая функциональность — в ветке `feature/<краткое-имя>`.
-- Изменения вливаются через **Pull Request**; merge — только после зелёного CI.
+- Для этой индивидуальной сдачи используется ветка `yanshin`, созданная от `main`.
+- Коммиты и push выполняются только в `yanshin`; `main` не изменяется,
+  слияние в неё не выполняется.
 - Сообщения коммитов — в формате
   [Conventional Commits](https://www.conventionalcommits.org/):
   `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`, `refactor: ...`, `test: ...`.
@@ -126,3 +127,11 @@ poetry run pytest -q --cov=src       # с покрытием
   poetry export --without-hashes --only main -o requirements.txt
   poetry export --without-hashes --with dev -o requirements-lock.txt
   ```
+
+## Независимый аудит
+
+Критерии и воспроизводимые команды: [AI_REVIEW.md](docs/AI_REVIEW.md).
+`reset-mlflow.ps1` архивирует только стандартное локальное хранилище: сначала
+остановите MLflow/обучение и посмотрите план через `-WhatIf`. Скрипт не удаляет
+историю и не завершает чужие процессы. При пользовательских путях он отказывается
+работать; для проверки проекта сброс хранилища не требуется.

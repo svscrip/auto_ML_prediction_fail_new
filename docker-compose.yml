@@ -13,14 +13,15 @@ services:
       - ./keis7-main:/app/keis7-main:ro
     command: ["src.predict"]
     depends_on:
-      - train
+      train:
+        condition: service_completed_successfully
 
   mlflow:
     build:
       context: .
       dockerfile: Dockerfile.mlflow
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     volumes:
       - ./artifacts:/app/artifacts
     command: >
@@ -28,4 +29,4 @@ services:
       --host 0.0.0.0
       --port 5000
       --backend-store-uri sqlite:////app/artifacts/mlflow.db
-      --default-artifact-root /app/artifacts/mlartifacts
+      --default-artifact-root file:///app/artifacts/mlartifacts

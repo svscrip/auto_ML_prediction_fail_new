@@ -12,6 +12,11 @@ PSI_STABLE = 0.1
 PSI_WARNING = 0.25
 
 
+def _finite_or_none(value: float) -> float | None:
+    """Represent undefined statistics as JSON null, never NaN or Infinity."""
+    return float(value) if pd.notna(value) and np.isfinite(value) else None
+
+
 def compute_data_quality_report(df: pd.DataFrame, label: str = "train") -> dict:
     """
     Формирует отчет о качестве данных переданного датасета.
@@ -24,7 +29,7 @@ def compute_data_quality_report(df: pd.DataFrame, label: str = "train") -> dict:
         "rows": len(df),
         "null_counts": df.isnull().sum().to_dict(),
         "target_rate": (
-            float(df[TARGET_COL].mean()) if TARGET_COL in df.columns else None
+            _finite_or_none(df[TARGET_COL].mean()) if TARGET_COL in df.columns else None
         ),
         "type_distribution": (
             df["Type"].value_counts().to_dict() if "Type" in df.columns else {}
@@ -32,8 +37,8 @@ def compute_data_quality_report(df: pd.DataFrame, label: str = "train") -> dict:
     }
     for col in RAW_NUMERIC_FEATURES:
         if col in df.columns:
-            report[f"mean_{col}"] = float(df[col].mean())
-            report[f"std_{col}"] = float(df[col].std())
+            report[f"mean_{col}"] = _finite_or_none(df[col].mean())
+            report[f"std_{col}"] = _finite_or_none(df[col].std())
     return report
 
 
@@ -225,6 +230,6 @@ def build_inference_monitoring_summary(
 
 
 def save_monitoring_report(report: dict, path: Path) -> None:
+    text = json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(report, f, indent=2, ensure_ascii=False)
+    path.write_text(text + "\n", encoding="utf-8")
