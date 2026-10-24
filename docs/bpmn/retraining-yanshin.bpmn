@@ -1,0 +1,421 @@
+<?xml version='1.0' encoding='utf-8'?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_Yanshin" targetNamespace="https://github.com/svscrip/auto_ML_prediction_fail_new/yanshin" exporter="bpmn-js / bpmn-auto-layout">
+  <bpmn:process id="Process_Retraining" name="Переобучение модели — Яньшин А." isExecutable="false">
+    <bpmn:documentation>Учебная спецификация. Основа — групповой проект. Роли, условия и артефакты: Model_retrain_BPMN.md. Это проектируемый процесс, внешние интеграции ещё не реализованы.</bpmn:documentation>
+    <bpmn:startEvent id="Start" name="Триггер: drift / quality / расписание / вручную">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Capture" name="Зафиксировать champion; attempt = 0">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Data" name="Получить размеченный snapshot">
+      <bpmn:incoming>Flow_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Ready" name="Данные готовы?" default="Flow_5">
+      <bpmn:incoming>Flow_3</bpmn:incoming>
+      <bpmn:outgoing>Flow_4</bpmn:outgoing>
+      <bpmn:outgoing>Flow_5</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Prepare" name="Разделение и признаки без утечки">
+      <bpmn:incoming>Flow_4</bpmn:incoming>
+      <bpmn:incoming>Flow_14</bpmn:incoming>
+      <bpmn:outgoing>Flow_6</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Train" name="attempt += 1; обучить candidate">
+      <bpmn:incoming>Flow_6</bpmn:incoming>
+      <bpmn:outgoing>Flow_7</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Compare" name="Оценить обе модели на одном snapshot">
+      <bpmn:incoming>Flow_7</bpmn:incoming>
+      <bpmn:outgoing>Flow_9</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gate" name="AUC лучше; ограничения соблюдены?" default="Flow_11">
+      <bpmn:incoming>Flow_9</bpmn:incoming>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="Retry" name="attempt &lt; 3; причина устранима?" default="Flow_13">
+      <bpmn:incoming>Flow_8</bpmn:incoming>
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+      <bpmn:outgoing>Flow_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:userTask id="Revise" name="DS: анализ и новая конфигурация">
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_14</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:userTask id="Review" name="Валидатор и владелец: проверить отчёт">
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_15</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Approved" name="Одобрено?" default="Flow_18">
+      <bpmn:incoming>Flow_15</bpmn:incoming>
+      <bpmn:outgoing>Flow_17</bpmn:outgoing>
+      <bpmn:outgoing>Flow_18</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Register" name="Зарегистрировать неизменяемую версию">
+      <bpmn:incoming>Flow_17</bpmn:incoming>
+      <bpmn:outgoing>Flow_19</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Deploy" name="Проверить champion; тестовый rollout">
+      <bpmn:incoming>Flow_19</bpmn:incoming>
+      <bpmn:outgoing>Flow_21</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Health" name="Проверки успешны?" default="Flow_24">
+      <bpmn:incoming>Flow_21</bpmn:incoming>
+      <bpmn:outgoing>Flow_23</bpmn:outgoing>
+      <bpmn:outgoing>Flow_24</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Promote" name="Переключить champion; архивировать прежний">
+      <bpmn:incoming>Flow_23</bpmn:incoming>
+      <bpmn:outgoing>Flow_25</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Rollback" name="Откат и проверка; иначе регламентный режим">
+      <bpmn:incoming>Flow_22</bpmn:incoming>
+      <bpmn:incoming>Flow_24</bpmn:incoming>
+      <bpmn:outgoing>Flow_26</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:userTask id="Stop" name="Сохранить champion; анализ / эскалация">
+      <bpmn:incoming>Flow_5</bpmn:incoming>
+      <bpmn:incoming>Flow_13</bpmn:incoming>
+      <bpmn:incoming>Flow_16</bpmn:incoming>
+      <bpmn:incoming>Flow_18</bpmn:incoming>
+      <bpmn:incoming>Flow_20</bpmn:incoming>
+      <bpmn:outgoing>Flow_27</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Notify" name="Аудит и Telegram; при сбое очередь">
+      <bpmn:incoming>Flow_25</bpmn:incoming>
+      <bpmn:incoming>Flow_26</bpmn:incoming>
+      <bpmn:incoming>Flow_27</bpmn:incoming>
+      <bpmn:outgoing>Flow_28</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="Цикл закрыт; мониторинг продолжается">
+      <bpmn:incoming>Flow_28</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:boundaryEvent id="TrainError" name="Ошибка обучения" attachedToRef="Train">
+      <bpmn:outgoing>Flow_8</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="TrainError_Definition" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="RegisterError" name="Ошибка регистрации" attachedToRef="Register">
+      <bpmn:outgoing>Flow_20</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="RegisterError_Definition" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="DeployError" name="Ошибка деплоя" attachedToRef="Deploy">
+      <bpmn:outgoing>Flow_22</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="DeployError_Definition" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="Timeout" name="24 часа без ответа" attachedToRef="Review">
+      <bpmn:outgoing>Flow_16</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="Timeout_Definition">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">PT24H</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_1" name="" sourceRef="Start" targetRef="Capture" />
+    <bpmn:sequenceFlow id="Flow_2" name="" sourceRef="Capture" targetRef="Data" />
+    <bpmn:sequenceFlow id="Flow_3" name="" sourceRef="Data" targetRef="Ready" />
+    <bpmn:sequenceFlow id="Flow_4" name="Да" sourceRef="Ready" targetRef="Prepare">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">data_ready</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_5" name="Нет" sourceRef="Ready" targetRef="Stop" />
+    <bpmn:sequenceFlow id="Flow_6" name="" sourceRef="Prepare" targetRef="Train" />
+    <bpmn:sequenceFlow id="Flow_7" name="" sourceRef="Train" targetRef="Compare" />
+    <bpmn:sequenceFlow id="Flow_8" name="" sourceRef="TrainError" targetRef="Retry" />
+    <bpmn:sequenceFlow id="Flow_9" name="" sourceRef="Compare" targetRef="Gate" />
+    <bpmn:sequenceFlow id="Flow_10" name="Да" sourceRef="Gate" targetRef="Review">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">quality_gate_passed</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_11" name="Нет" sourceRef="Gate" targetRef="Retry" />
+    <bpmn:sequenceFlow id="Flow_12" name="Да" sourceRef="Retry" targetRef="Revise">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">attempt &lt; 3 and remediable</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_13" name="Нет" sourceRef="Retry" targetRef="Stop" />
+    <bpmn:sequenceFlow id="Flow_14" name="" sourceRef="Revise" targetRef="Prepare" />
+    <bpmn:sequenceFlow id="Flow_15" name="" sourceRef="Review" targetRef="Approved" />
+    <bpmn:sequenceFlow id="Flow_16" name="" sourceRef="Timeout" targetRef="Stop" />
+    <bpmn:sequenceFlow id="Flow_17" name="Да" sourceRef="Approved" targetRef="Register">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">approved and decision_current</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_18" name="Нет" sourceRef="Approved" targetRef="Stop" />
+    <bpmn:sequenceFlow id="Flow_19" name="" sourceRef="Register" targetRef="Deploy" />
+    <bpmn:sequenceFlow id="Flow_20" name="" sourceRef="RegisterError" targetRef="Stop" />
+    <bpmn:sequenceFlow id="Flow_21" name="" sourceRef="Deploy" targetRef="Health" />
+    <bpmn:sequenceFlow id="Flow_22" name="" sourceRef="DeployError" targetRef="Rollback" />
+    <bpmn:sequenceFlow id="Flow_23" name="Да" sourceRef="Health" targetRef="Promote">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">deployment_healthy</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_24" name="Нет" sourceRef="Health" targetRef="Rollback" />
+    <bpmn:sequenceFlow id="Flow_25" name="" sourceRef="Promote" targetRef="Notify" />
+    <bpmn:sequenceFlow id="Flow_26" name="" sourceRef="Rollback" targetRef="Notify" />
+    <bpmn:sequenceFlow id="Flow_27" name="" sourceRef="Stop" targetRef="Notify" />
+    <bpmn:sequenceFlow id="Flow_28" name="" sourceRef="Notify" targetRef="End" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Process_Retraining">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process_Retraining" bpmnElement="Process_Retraining">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="872" y="40" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="787" y="83" width="210" height="45" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Capture_di" bpmnElement="Capture">
+        <dc:Bounds x="780" y="145" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Data_di" bpmnElement="Data">
+        <dc:Bounds x="780" y="265" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Ready_di" bpmnElement="Ready" isMarkerVisible="true">
+        <dc:Bounds x="860" y="385" width="60" height="60" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="930" y="440" width="190" height="45" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Prepare_di" bpmnElement="Prepare">
+        <dc:Bounds x="780" y="485" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Train_di" bpmnElement="Train">
+        <dc:Bounds x="780" y="605" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TrainError_di" bpmnElement="TrainError">
+        <dc:Bounds x="967" y="667" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="837" y="707" width="170" height="35" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Compare_di" bpmnElement="Compare">
+        <dc:Bounds x="780" y="745" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gate_di" bpmnElement="Gate" isMarkerVisible="true">
+        <dc:Bounds x="860" y="875" width="60" height="60" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="930" y="930" width="190" height="45" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Review_di" bpmnElement="Review">
+        <dc:Bounds x="780" y="995" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Timeout_di" bpmnElement="Timeout">
+        <dc:Bounds x="762" y="1017" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="632" y="1057" width="170" height="35" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stop_di" bpmnElement="Stop">
+        <dc:Bounds x="100" y="1625" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Approved_di" bpmnElement="Approved" isMarkerVisible="true">
+        <dc:Bounds x="860" y="1145" width="60" height="60" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="930" y="1200" width="190" height="45" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Register_di" bpmnElement="Register">
+        <dc:Bounds x="780" y="1245" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="RegisterError_di" bpmnElement="RegisterError">
+        <dc:Bounds x="762" y="1267" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="632" y="1307" width="170" height="35" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Deploy_di" bpmnElement="Deploy">
+        <dc:Bounds x="780" y="1385" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DeployError_di" bpmnElement="DeployError">
+        <dc:Bounds x="967" y="1447" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="837" y="1487" width="170" height="35" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Rollback_di" bpmnElement="Rollback">
+        <dc:Bounds x="1180" y="1625" width="240" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Health_di" bpmnElement="Health" isMarkerVisible="true">
+        <dc:Bounds x="860" y="1525" width="60" height="60" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="930" y="1580" width="190" height="45" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Promote_di" bpmnElement="Promote">
+        <dc:Bounds x="780" y="1625" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Notify_di" bpmnElement="Notify">
+        <dc:Bounds x="780" y="1765" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="872" y="1905" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="787" y="1948" width="210" height="45" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Retry_di" bpmnElement="Retry" isMarkerVisible="true">
+        <dc:Bounds x="1270" y="875" width="60" height="60" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1340" y="930" width="190" height="45" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Revise_di" bpmnElement="Revise">
+        <dc:Bounds x="1190" y="485" width="220" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="890.0" y="76" />
+        <di:waypoint x="890.0" y="145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="890.0" y="225" />
+        <di:waypoint x="890.0" y="265" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3">
+        <di:waypoint x="890.0" y="345" />
+        <di:waypoint x="890.0" y="385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4">
+        <di:waypoint x="890.0" y="445" />
+        <di:waypoint x="890.0" y="485" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="898.0" y="443.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5">
+        <di:waypoint x="860" y="415.0" />
+        <di:waypoint x="220" y="415" />
+        <di:waypoint x="220.0" y="1625" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="650" y="390" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6">
+        <di:waypoint x="890.0" y="565" />
+        <di:waypoint x="890.0" y="605" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7">
+        <di:waypoint x="890.0" y="685" />
+        <di:waypoint x="890.0" y="745" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8">
+        <di:waypoint x="1003" y="685.0" />
+        <di:waypoint x="1300" y="685" />
+        <di:waypoint x="1300.0" y="875" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9">
+        <di:waypoint x="890.0" y="825" />
+        <di:waypoint x="890.0" y="875" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="890.0" y="935" />
+        <di:waypoint x="890.0" y="995" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="898.0" y="943.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="920" y="905.0" />
+        <di:waypoint x="1270" y="905.0" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1103.0" y="883.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15">
+        <di:waypoint x="890.0" y="1075" />
+        <di:waypoint x="890.0" y="1145" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16">
+        <di:waypoint x="762" y="1035.0" />
+        <di:waypoint x="450" y="1035" />
+        <di:waypoint x="450" y="1665" />
+        <di:waypoint x="340" y="1665.0" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_27_di" bpmnElement="Flow_27">
+        <di:waypoint x="220.0" y="1705" />
+        <di:waypoint x="220" y="1805" />
+        <di:waypoint x="780" y="1805.0" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17_di" bpmnElement="Flow_17">
+        <di:waypoint x="890.0" y="1205" />
+        <di:waypoint x="890.0" y="1245" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="898.0" y="1203.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18">
+        <di:waypoint x="860" y="1175.0" />
+        <di:waypoint x="550" y="1175" />
+        <di:waypoint x="550" y="1590" />
+        <di:waypoint x="220" y="1590" />
+        <di:waypoint x="220.0" y="1625" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="713.0" y="1153.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19_di" bpmnElement="Flow_19">
+        <di:waypoint x="890.0" y="1325" />
+        <di:waypoint x="890.0" y="1385" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20">
+        <di:waypoint x="762" y="1285.0" />
+        <di:waypoint x="400" y="1285" />
+        <di:waypoint x="400" y="1665" />
+        <di:waypoint x="340" y="1665.0" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21">
+        <di:waypoint x="890.0" y="1465" />
+        <di:waypoint x="890.0" y="1525" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22">
+        <di:waypoint x="1003" y="1465.0" />
+        <di:waypoint x="1370" y="1465" />
+        <di:waypoint x="1370" y="1625" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_26_di" bpmnElement="Flow_26">
+        <di:waypoint x="1300.0" y="1705" />
+        <di:waypoint x="1300" y="1805" />
+        <di:waypoint x="1000" y="1805.0" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23">
+        <di:waypoint x="890.0" y="1585" />
+        <di:waypoint x="890.0" y="1625" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="898.0" y="1583.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_24_di" bpmnElement="Flow_24">
+        <di:waypoint x="920" y="1555.0" />
+        <di:waypoint x="1300" y="1555" />
+        <di:waypoint x="1300.0" y="1625" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1118.0" y="1533.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_25_di" bpmnElement="Flow_25">
+        <di:waypoint x="890.0" y="1705" />
+        <di:waypoint x="890.0" y="1765" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_28_di" bpmnElement="Flow_28">
+        <di:waypoint x="890.0" y="1845" />
+        <di:waypoint x="890.0" y="1905" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
+        <di:waypoint x="1300.0" y="875" />
+        <di:waypoint x="1300.0" y="565" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1308.0" y="698.0" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13">
+        <di:waypoint x="1330" y="905.0" />
+        <di:waypoint x="1510" y="905" />
+        <di:waypoint x="1510" y="1730" />
+        <di:waypoint x="220" y="1730" />
+        <di:waypoint x="220.0" y="1705" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1410" y="875" width="60" height="22" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14">
+        <di:waypoint x="1190" y="525.0" />
+        <di:waypoint x="1000" y="525.0" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

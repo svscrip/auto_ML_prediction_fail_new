@@ -3,7 +3,7 @@
 The module evaluates the trained CatBoost model on exactly the same stratified
 hold-out split as :mod:`src.train`, enriches the result with calibration,
 subgroup, environment and git metadata, and stores it as JSON.  The JSON
-snapshot is used to render the tables in ``docs/model-card.md`` between
+snapshot is used to render the tables in ``model_card.md`` between
 ``<!-- model-card:<name>:start -->`` markers.
 
 Examples
@@ -14,11 +14,11 @@ Compute a fresh snapshot after training::
 
 Render the documentation from the snapshot::
 
-    poetry run python -m src.model_card --write docs/model-card.md
+    poetry run python -m src.model_card --write model_card.md
 
 Verify that the documentation is up to date (used by tests and CI)::
 
-    poetry run python -m src.model_card --check docs/model-card.md
+    poetry run python -m src.model_card --check model_card.md
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ ECE_BINS = 10
 DEFAULT_METRICS_PATH = ARTIFACTS_DIR / "model_card_metrics.json"
 EXAMPLE_METRICS_PATH = ARTIFACTS_DIR / "example_model_card_metrics.json"
 OUTDATED_METRICS_PATH = ARTIFACTS_DIR / "example_metrics.json"
-DEFAULT_CARD_PATH = PROJECT_ROOT / "docs" / "model-card.md"
+DEFAULT_CARD_PATH = PROJECT_ROOT / "model_card.md"
 DEFAULT_CARD_DATA_PATH = PROJECT_ROOT / "docs" / "model-card.yaml"
 
 FAILURE_MODE_LABELS = {
@@ -838,7 +838,7 @@ def _load_card_data(path: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build model card metrics and render docs/model-card.md"
+        description="Build model card metrics and render model_card.md"
     )
     parser.add_argument(
         "--output",

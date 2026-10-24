@@ -21,7 +21,7 @@
 pip install --user poetry
 
 # Создать .venv и установить зависимости (runtime + dev)
-poetry install
+poetry sync --with dev
 
 # Активировать окружение
 .\.venv\Scripts\Activate.ps1
@@ -30,7 +30,7 @@ poetry install
 Либо одной командой через скрипт-хелпер:
 
 ```powershell
-.\scripts\bootstrap.ps1     # установка Poetry + poetry install
+.\scripts\bootstrap.ps1     # установка Poetry + poetry sync --with dev
 .\scripts\activate.ps1      # активация .venv
 ```
 
@@ -38,7 +38,7 @@ poetry install
 
 ```bash
 pip install --user poetry
-poetry install
+poetry sync --with dev
 source .venv/bin/activate
 ```
 
@@ -54,7 +54,7 @@ poetry run pre-commit install
 Теперь при каждом `git commit` автоматически запускаются:
 
 - `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-toml`,
-  `check-added-large-files`, `detect-private-key`, `mixed-line-ending`;
+  `check-added-large-files`, `detect-private-key`, `check-merge-conflict`;
 - **black** — форматирование кода;
 - **isort** — сортировка импортов;
 - **flake8** (+ flake8-bugbear) — статический анализ.

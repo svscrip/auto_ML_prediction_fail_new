@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master, "feature/**"]
+    branches: [main, master, yanshin, "feature/**"]
   pull_request:
     branches: [main, master]
 
@@ -63,7 +63,7 @@ jobs:
           key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
 
       - name: Install dependencies
-        run: poetry install --no-interaction
+        run: poetry sync --with dev --no-interaction
 
       - name: Run pytest
         run: poetry run pytest -q --cov=src --cov-report=xml --cov-report=term-missing

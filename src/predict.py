@@ -19,13 +19,17 @@ from src.monitoring import compare_distributions, compute_data_quality_report
 
 
 def assign_risk_level_vector(probs: pd.Series) -> pd.Series:
+    """Rank a batch by quantiles; ties receive the same, lower risk level."""
+    if probs.isna().any() or not probs.between(0, 1).all():
+        raise ValueError("Probabilities must be finite numbers between 0 and 1")
+    if probs.empty:
+        return pd.Series(index=probs.index, dtype=str)
     quart_50 = probs.quantile(0.50)
     quart_90 = probs.quantile(0.90)
-    return pd.cut(
-        probs,
-        bins=[-0.01, quart_50, quart_90, 1.01],
-        labels=["Низкий", "Средний", "Высокий"],
-    ).astype(str)
+    levels = pd.Series("Низкий", index=probs.index, dtype=str)
+    levels.loc[probs > quart_50] = "Средний"
+    levels.loc[probs > quart_90] = "Высокий"
+    return levels
 
 
 def predict(
@@ -47,6 +51,8 @@ def predict(
         raise FileNotFoundError(
             f"Model not found at {model_path}. Run: python -m src.train"
         )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     model = CatBoostClassifier()
     model.load_model(str(model_path))

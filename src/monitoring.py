@@ -52,26 +52,32 @@ def population_stability_index(
     Интерпретация результатов (эмпирическое правило):
         - PSI < 0.1   : Распределения практически идентичны (изменений нет).
         - 0.1 <= PSI < 0.25 : Небольшой сдвиг (требуется внимание).
-        - PSI >= 0.25  : Значительный сдвиг, модель требует переобучения.
+        - PSI >= 0.25  : Значительный сдвиг; проверить причины и качество модели.
     """
-    breakpoints = np.linspace(
-        min(expected.min(), actual.min()),
-        max(expected.max(), actual.max()),
-        bins + 1,
+    if not isinstance(bins, int) or isinstance(bins, bool) or bins < 2:
+        raise ValueError("bins must be an integer >= 2")
+    reference = np.asarray(expected, dtype=float)
+    current = np.asarray(actual, dtype=float)
+    for values in (reference, current):
+        if values.ndim != 1 or not values.size or not np.isfinite(values).all():
+            raise ValueError("PSI requires non-empty, finite one-dimensional data")
+
+    # Freeze bins on the reference, including both tails and the minimum value.
+    lower, upper = float(reference.min()), float(reference.max())
+    if lower == upper:
+        width = max(abs(lower) * 0.01, 0.5)
+        lower, upper = lower - width, upper + width
+    edges = np.linspace(lower, upper, bins + 1)
+    edges[0], edges[-1] = -np.inf, np.inf
+    reference_counts = np.histogram(reference, bins=edges)[0]
+    current_counts = np.histogram(current, bins=edges)[0]
+    reference_pct = np.maximum(reference_counts / reference.size, 1e-4)
+    current_pct = np.maximum(current_counts / current.size, 1e-4)
+    reference_pct /= reference_pct.sum()
+    current_pct /= current_pct.sum()
+    return float(
+        np.sum((current_pct - reference_pct) * np.log(current_pct / reference_pct))
     )
-    expected_pct = pd.cut(expected, breakpoints, duplicates="drop").value_counts(
-        normalize=True
-    )
-    actual_pct = pd.cut(actual, breakpoints, duplicates="drop").value_counts(
-        normalize=True
-    )
-    aligned = pd.concat([expected_pct, actual_pct], axis=1, join="outer").fillna(0.0001)
-    aligned.columns = ["expected", "actual"]
-    psi = (
-        (aligned["actual"] - aligned["expected"])
-        * np.log(aligned["actual"] / aligned["expected"])
-    ).sum()
-    return float(psi)
 
 
 def compare_distributions(reference: pd.DataFrame, current: pd.DataFrame) -> dict:
@@ -106,6 +112,8 @@ def infrastructure_snapshot() -> dict:
 
 def interpret_psi(psi: float) -> str:
     """Classify drift severity by Population Stability Index."""
+    if not np.isfinite(psi) or psi < 0:
+        raise ValueError("PSI must be finite and non-negative")
     if psi < PSI_STABLE:
         return "stable"
     if psi < PSI_WARNING:
