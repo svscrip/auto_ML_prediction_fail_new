@@ -617,15 +617,43 @@ def _render_threshold_sweep(context: dict[str, Any]) -> str:
     )
 
 
+def constant_prior_baseline(positive_rate: float) -> dict[str, float]:
+    """Brier score and log loss of always predicting the observed failure rate."""
+    if not 0 < positive_rate < 1:
+        raise ValueError("positive_rate must be strictly between 0 and 1")
+    p = float(positive_rate)
+    return {
+        "brier": p * (1 - p),
+        "log_loss": -(p * np.log(p) + (1 - p) * np.log(1 - p)),
+    }
+
+
 def _render_calibration(context: dict[str, Any]) -> str:
     calibration = context["metrics"]["calibration"]
+    rate = context["metrics"]["dataset"]["validation"]["positive_rate"]
+    baseline = constant_prior_baseline(rate)
     rows = [
-        ["Brier score", _format_value(calibration["brier"])],
-        ["Log loss", _format_value(calibration["log_loss"])],
-        ["ECE", _format_value(calibration["ece"])],
-        ["Бинов ECE", calibration["bins"]],
+        [
+            "Brier score",
+            _format_value(calibration["brier"]),
+            _format_value(baseline["brier"]),
+        ],
+        [
+            "Log loss",
+            _format_value(calibration["log_loss"]),
+            _format_value(baseline["log_loss"]),
+        ],
+        ["ECE", _format_value(calibration["ece"]), _format_value(0.0)],
+        ["Бинов ECE", calibration["bins"], calibration["bins"]],
     ]
-    return _table(["Метрика калибровки", "Значение"], rows)
+    return _table(
+        [
+            "Метрика калибровки",
+            "Модель",
+            f"Константа {_format_percent(rate)} (доля отказов)",
+        ],
+        rows,
+    )
 
 
 def _render_dataset_summary(context: dict[str, Any]) -> str:

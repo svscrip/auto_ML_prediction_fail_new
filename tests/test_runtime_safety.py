@@ -1,12 +1,14 @@
 """Regression tests for boundary cases in inference, input and monitoring."""
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import numpy as np
 import pandas as pd
 import pytest
+import yaml
 
 from src import mlflow_setup
 from src.etl.load import load_train, validate_schema
@@ -138,3 +140,21 @@ def test_invalid_sample_size_fails_before_side_effects(size, tmp_path):
     with pytest.raises(ValueError, match="positive integer"):
         train_model(sample_size=size, output_dir=output)
     assert not output.exists()
+
+
+def test_compose_services_do_not_reuse_the_host_mlflow_store():
+    root = Path(__file__).resolve().parents[1]
+    compose = yaml.safe_load((root / "docker-compose.yml").read_text(encoding="utf-8"))
+    services = compose["services"]
+    for name in ("train", "predict"):
+        env = services[name]["environment"]
+        store = env["ML_ARTIFACTS_DIR"].rstrip("/")
+        assert store != "/app/artifacts", name
+        assert env["MLFLOW_TRACKING_URI"] == f"sqlite:///{store}/mlflow.db", name
+        assert env["MLFLOW_ARTIFACTS_URI"] == f"file://{store}/mlartifacts", name
+    server = services["mlflow"]["command"].split()
+    train_env = services["train"]["environment"]
+    backend = server[server.index("--backend-store-uri") + 1]
+    artifact_root = server[server.index("--default-artifact-root") + 1]
+    assert backend == train_env["MLFLOW_TRACKING_URI"]
+    assert artifact_root == train_env["MLFLOW_ARTIFACTS_URI"]

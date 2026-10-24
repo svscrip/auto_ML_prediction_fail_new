@@ -22,7 +22,7 @@ model_details:
   task: "Бинарная классификация табличных данных"
   algorithm: "CatBoostClassifier"
   framework: "CatBoost 1.2.10, scikit-learn 1.9.1"
-  owner: "Яньшин А. — учебная доработка группового проекта"
+  owner: "Групповой учебный проект (main); доработка ветки yanshin — Яньшин А."
   artifact: artifacts/model.cbm
   mlflow_experiment: machine_failure_prediction
   target: "Machine failure: 1 — отказ, 0 — норма"

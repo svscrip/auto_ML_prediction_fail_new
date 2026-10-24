@@ -69,7 +69,9 @@ poetry run pytest -q --override-ini addopts=''
 poetry run python -m src.model_card --check model_card.md --metrics artifacts/example_model_card_metrics.json
 ```
 
-Последняя pytest-команда включает slow smoke-тест обучения. Black, isort и
+Последняя pytest-команда включает slow smoke-тест обучения. Тесты обучения
+пишут модель и MLflow-запуски во временный каталог pytest, поэтому не заменяют
+`artifacts/model.cbm` и не добавляют запуски в рабочую историю. Black, isort и
 Flake8 проверяют стиль; pytest проверяет ETL, обучение, мониторинг и карточку.
 CI запускается при push в `yanshin`, включает Python 3.11/3.12/3.13 и Docker smoke.
 Публикация релизов по тегам — отдельный исходный workflow; тег для сдачи не нужен.
@@ -135,6 +137,12 @@ docker run --rm -v yanshin-artifacts:/app/artifacts machine-failure-mlops:yanshi
 ```
 
 Образ использует непривилегированного пользователя; артефакты сохраняются в томе.
+
+`docker compose up train predict mlflow` монтирует `./artifacts`, но ведёт
+отдельное хранилище в `artifacts/docker/` (модель, `mlflow.db`, артефакты).
+Локальная база `artifacts/mlflow.db` хранит пути хоста, поэтому контейнер её
+не использует: иначе `src.mlflow_setup` остановил бы обучение из-за конфликта
+путей. Интерфейс MLflow из compose показывает только контейнерные запуски.
 Состояние проверки контейнера отражается отдельной задачей CI.
 
 ## Карточка и процессы

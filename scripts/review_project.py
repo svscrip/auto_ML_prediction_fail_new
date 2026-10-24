@@ -203,23 +203,31 @@ def verify(poetry: str) -> int:
             ],
         ),
         (
+            "train-smoke",
+            [sys.executable, "-m", "src.train", "--sample-size", "2000"],
+        ),
+        (
             "inference",
             [
                 sys.executable,
                 "-m",
                 "src.predict",
                 "--model",
-                str(runtime / "smoke_test/model.cbm"),
+                str(runtime / "model.cbm"),
                 "--output-dir",
                 str(output / "inference"),
             ],
         ),
     ]
     for name, command in commands:
-        if name == "inference" and any(
-            c["name"] == "pytest" and c["returncode"] != 0 for c in checks
-        ):
-            checks.append({"name": name, "returncode": None, "reason": "pytest failed"})
+        failed_prerequisites = [
+            c["name"]
+            for c in checks
+            if c["name"] in ("pytest", "train-smoke") and c["returncode"] != 0
+        ]
+        if name in ("train-smoke", "inference") and failed_prerequisites:
+            reason = f"{', '.join(failed_prerequisites)} failed"
+            checks.append({"name": name, "returncode": None, "reason": reason})
             continue
         log = output / f"{name}.log"
         with log.open("w", encoding="utf-8") as stream:
