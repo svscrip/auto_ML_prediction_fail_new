@@ -4,9 +4,10 @@ title: "Model Card: прогнозирование отказов промышл
 language: ru
 last_reviewed: "2026-10-24"
 scope: >
-  Полный прогон (full run) на 136 114 строках после ETL. Все таблицы с
-  метриками в model_card.md генерируются из этого файла и JSON-снимка,
-  поэтому ручное редактирование таблиц не требуется.
+  Исторический полный прогон на 136 114 строках после ETL. Основные таблицы
+  с маркерами model-card генерируются из этого файла и JSON-снимка.
+  Отдельная таблица ablation в разделе 7 берётся из feature_ablation;
+  она не заменяет исторические метрики или основную модель.
 
 sources:
   metrics_snapshot: artifacts/example_model_card_metrics.json
@@ -15,6 +16,7 @@ sources:
   inference_monitoring: artifacts/example_inference_monitoring.json
   outdated_metrics: artifacts/example_metrics.json
   dataset: keis7-main/train.csv
+  feature_ablation: artifacts/example_feature_ablation.json
 
 model_details:
   name: "Machine Failure Predictor"

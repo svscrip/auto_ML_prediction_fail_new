@@ -1,5 +1,9 @@
 """Check isolation, label alignment and the interpretation of ablation metrics."""
 
+import hashlib
+import json
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -9,6 +13,7 @@ from src.ablation import (
     SENSOR_FEATURES,
     evaluate,
     feature_matrix,
+    result_table,
     run_experiment,
     split_data,
 )
@@ -84,3 +89,34 @@ def test_existing_output_is_never_reused(tmp_path):
     with pytest.raises(FileExistsError):
         run_experiment(tmp_path, data_path=tmp_path / "missing.csv")
     assert model.read_bytes() == b"existing working model"
+
+
+def test_published_snapshot_matches_data_splits_counts_and_documentation():
+    root = Path(__file__).resolve().parents[1]
+    snapshot = root / "artifacts/example_feature_ablation.json"
+    report = json.loads(snapshot.read_text(encoding="utf-8"))
+    source = root / "keis7-main/train.csv"
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == report["data"]["sha256"]
+    parts = split_data(load_train(source))
+    for name, part in parts.items():
+        ids = sorted(int(value) for value in part[ID_COL])
+        fingerprint = hashlib.sha256(
+            json.dumps(ids, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        assert fingerprint == report["splits"][name]["sorted_ids_sha256"]
+        assert len(part) == report["splits"][name]["rows"]
+        assert int(part[TARGET_COL].sum()) == report["splits"][name]["positives"]
+    for variant in report["variants"].values():
+        for name in ("validation", "holdout"):
+            metrics = variant[f"{name}_metrics"]
+            counts = metrics["confusion_matrix"]
+            assert sum(counts.values()) == report["splits"][name]["rows"]
+            assert counts["tp"] + counts["fn"] == report["splits"][name]["positives"]
+            assert metrics["precision"] == pytest.approx(
+                counts["tp"] / (counts["tp"] + counts["fp"])
+            )
+            assert metrics["recall"] == pytest.approx(
+                counts["tp"] / (counts["tp"] + counts["fn"])
+            )
+    for relative in ("model_card.md", "docs/feature-ablation.md"):
+        assert result_table(report) in (root / relative).read_text(encoding="utf-8")

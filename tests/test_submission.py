@@ -28,6 +28,7 @@ def test_submission_links_resolve():
         "docs/AI_REVIEW.md",
         "docs/defense.md",
         "docs/presentation.md",
+        "docs/feature-ablation.md",
     ]:
         source = ROOT / relative
         text = source.read_text(encoding="utf-8")
