@@ -2,7 +2,8 @@
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_Yanshin" targetNamespace="https://github.com/svscrip/auto_ML_prediction_fail_new/yanshin" exporter="bpmn-js / bpmn-auto-layout">
   <bpmn:process id="Process_Retraining" name="Переобучение модели — Яньшин А." isExecutable="false">
     <bpmn:documentation>Учебная спецификация. Основа — групповой проект. Роли, условия и артефакты: Model_retrain_BPMN.md. Это проектируемый процесс, внешние интеграции ещё не реализованы.</bpmn:documentation>
-    <bpmn:startEvent id="Start" name="Триггер: drift / quality / расписание / вручную">
+    <bpmn:startEvent id="Start" name="Триггер: data drift / доля отказов / качество / объём новых данных / расписание / вручную">
+      <bpmn:documentation>Data drift: PSI ≥ 0.25 в двух суточных окнах. Concept drift: доля подтверждённых отказов за 30 суток отличается от reference champion более чем в 1.5 раза при ≥ 100 отказах. Quality decay: recall &lt; 0.80 при ≥ 100 отказах. Объём: новых размеченных строк не меньше обучающей выборки champion и ≥ 100 новых отказов. Расписание: ежемесячная проверка. Ручной запрос с основанием. Пороги — проектные допущения, см. Model_retrain_BPMN.md.</bpmn:documentation>
       <bpmn:outgoing>Flow_1</bpmn:outgoing>
     </bpmn:startEvent>
     <bpmn:serviceTask id="Capture" name="Зафиксировать champion; attempt = 0">
@@ -156,7 +157,7 @@
       <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
         <dc:Bounds x="872" y="40" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="787" y="83" width="210" height="45" />
+          <dc:Bounds x="918" y="31" width="280" height="54" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Capture_di" bpmnElement="Capture">
