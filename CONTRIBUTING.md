@@ -103,8 +103,8 @@ poetry run pytest -q --cov=src       # с покрытием
 ## 6. Git workflow
 
 - Для этой индивидуальной сдачи используется ветка `yanshin`, созданная от `main`.
-- Коммиты и push выполняются только в `yanshin`; `main` не изменяется,
-  слияние в неё не выполняется.
+- Работа велась в `yanshin`; после проверок и зелёного CI ветка слита в `main`
+  через pull request. Новые изменения — снова через отдельную ветку и PR.
 - Сообщения коммитов — в формате
   [Conventional Commits](https://www.conventionalcommits.org/):
   `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`, `refactor: ...`, `test: ...`.
