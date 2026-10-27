@@ -18,7 +18,7 @@ jobs:
     name: Lint (pre-commit)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -44,7 +44,7 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The image installs MLflow, CatBoost and matplotlib, so the default
       # amount of free space on a hosted runner is not always enough.
