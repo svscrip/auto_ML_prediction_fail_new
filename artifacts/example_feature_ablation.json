@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0",
+  "started_at_utc": "2026-10-24T15:30:08.386490+00:00",
+  "completed_at_utc": "2026-10-24T15:30:44.213174+00:00",
+  "base_commit": "13ffd2d3412683449eb8dee67aef36b6938014ae",
+  "source_sha256": {
+    "src/ablation.py": "b6bcee4fdfb0af596581becfdfc2b600658f9cb9c909b46e9e28db6571ab2431",
+    "src/config.py": "a3de41089cb048fbab6d57407227d0c21642c76fb56c13a193c32d0748257e2c",
+    "src/etl/features.py": "8f47d06f54b6c2f213bdd900dd5ef32c83a89e45510178f2117575b61c3df3b2",
+    "src/etl/load.py": "7c5493c43706c6c6825f2eaf2c0356673682ff9b232326a3b442b49d0dd0af66",
+    "poetry.lock": "6a04937e153133616c014e97cc1832e5fe7b1492b338f29b46c00beb2b400fc8"
+  },
+  "environment": {
+    "python": "3.12.14",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "packages": {
+      "catboost": "1.2.10",
+      "pandas": "3.0.6",
+      "numpy": "2.4.6",
+      "scikit-learn": "1.9.1"
+    }
+  },
+  "data": {
+    "file": "train.csv",
+    "sha256": "cfb4b2c163b10d1f85f9fdfec030524f0859d66ea8757393bb9dff763dd5b260",
+    "rows": 136429
+  },
+  "protocol": {
+    "split": "stratified random 60/20/20, frozen before feature construction",
+    "holdout_seed": 42,
+    "validation_seed": 43,
+    "label_or_flag_based_row_filtering": false,
+    "cumulative_feature": "calculated separately within each split; not temporal history",
+    "selection": "early stopping on validation only; no holdout tuning",
+    "threshold": 0.5,
+    "catboost_params": {
+      "iterations": 500,
+      "learning_rate": 0.03,
+      "depth": 8,
+      "l2_leaf_reg": 5,
+      "loss_function": "Logloss",
+      "eval_metric": "AUC",
+      "random_seed": 42,
+      "verbose": 100,
+      "early_stopping_rounds": 100,
+      "auto_class_weights": "Balanced",
+      "allow_writing_files": false,
+      "thread_count": 4
+    },
+    "working_model_replaced": false,
+    "mlflow_used": false
+  },
+  "splits": {
+    "train": {
+      "rows": 81857,
+      "positives": 1288,
+      "contradictory_rows_retained": 194,
+      "sorted_ids_sha256": "29c77e23493ef6abaaf37ea65fd383219eb2f0edfbe7d5fde83eca1d1da753ad"
+    },
+    "validation": {
+      "rows": 27286,
+      "positives": 430,
+      "contradictory_rows_retained": 57,
+      "sorted_ids_sha256": "40c7ef8641a80962f494353fbcf4adae98086efd6e7b1be7331e84082c854e85"
+    },
+    "holdout": {
+      "rows": 27286,
+      "positives": 430,
+      "contradictory_rows_retained": 64,
+      "sorted_ids_sha256": "1490aa2e10b5c92badd40bb57aaa564ea80b734611523d41cd7f323347c91700"
+    }
+  },
+  "variants": {
+    "with_failure_signals": {
+      "features": [
+        "Air temperature [K]",
+        "Process temperature [K]",
+        "Rotational speed [rpm]",
+        "Torque [Nm]",
+        "Tool wear [min]",
+        "TWF",
+        "HDF",
+        "PWF",
+        "OSF",
+        "RNF",
+        "delta_temperature [K]",
+        "Power [kW]",
+        "air_mass",
+        "air_heat_power [kW]",
+        "efficiency [%]",
+        "total_failures_cum",
+        "Type"
+      ],
+      "categorical_features": [
+        "Type",
+        "TWF",
+        "HDF",
+        "PWF",
+        "OSF",
+        "RNF"
+      ],
+      "tree_count": 82,
+      "training_seconds": 16.21881459999713,
+      "validation_metrics": {
+        "rows": 27286,
+        "positives": 430,
+        "threshold": 0.5,
+        "roc_auc": 0.9623250358501154,
+        "average_precision": 0.8163038861115983,
+        "precision": 0.2956381260096931,
+        "recall": 0.8511627906976744,
+        "f1": 0.43884892086330934,
+        "brier": 0.039217538892764754,
+        "log_loss": 0.1785183947041488,
+        "confusion_matrix": {
+          "tp": 366,
+          "fp": 872,
+          "tn": 25984,
+          "fn": 64
+        }
+      },
+      "holdout_metrics": {
+        "rows": 27286,
+        "positives": 430,
+        "threshold": 0.5,
+        "roc_auc": 0.953740751709375,
+        "average_precision": 0.820163637844235,
+        "precision": 0.2963562753036437,
+        "recall": 0.8511627906976744,
+        "f1": 0.43963963963963965,
+        "brier": 0.039325193842799366,
+        "log_loss": 0.17943856672799052,
+        "confusion_matrix": {
+          "tp": 366,
+          "fp": 869,
+          "tn": 25987,
+          "fn": 64
+        }
+      }
+    },
+    "without_failure_signals": {
+      "features": [
+        "Air temperature [K]",
+        "Process temperature [K]",
+        "Rotational speed [rpm]",
+        "Torque [Nm]",
+        "Tool wear [min]",
+        "delta_temperature [K]",
+        "Power [kW]",
+        "air_mass",
+        "air_heat_power [kW]",
+        "efficiency [%]",
+        "Type"
+      ],
+      "categorical_features": [
+        "Type"
+      ],
+      "tree_count": 143,
+      "training_seconds": 18.421929900003306,
+      "validation_metrics": {
+        "rows": 27286,
+        "positives": 430,
+        "threshold": 0.5,
+        "roc_auc": 0.9325457132267875,
+        "average_precision": 0.44586368601571763,
+        "precision": 0.11447704081632654,
+        "recall": 0.8348837209302326,
+        "f1": 0.20134604598990466,
+        "brier": 0.07732141847892278,
+        "log_loss": 0.27496307693229854,
+        "confusion_matrix": {
+          "tp": 359,
+          "fp": 2777,
+          "tn": 24079,
+          "fn": 71
+        }
+      },
+      "holdout_metrics": {
+        "rows": 27286,
+        "positives": 430,
+        "threshold": 0.5,
+        "roc_auc": 0.9144430935705329,
+        "average_precision": 0.4193728849492226,
+        "precision": 0.1107533805537669,
+        "recall": 0.8,
+        "f1": 0.19457013574660634,
+        "brier": 0.07759917275479637,
+        "log_loss": 0.27702861530154765,
+        "confusion_matrix": {
+          "tp": 344,
+          "fp": 2762,
+          "tn": 24094,
+          "fn": 86
+        }
+      }
+    }
+  },
+  "evidence_sha256": {
+    "holdout_predictions.csv": "44c37f538ee0c84dbb369fdb9a4d8aad1d6169bdb592db6bfa11a61b306c82e4",
+    "split_assignments.csv": "e5b3064ff832fc2469b6250b214311f87b8ff130079e8e4995d6c6ce014b2574",
+    "without_failure_signals.cbm": "a682c6674780699ddf5ba2d32ac5a004084a4782471ccc0952befb3fca0aae52",
+    "with_failure_signals.cbm": "183ee36cb9c2db2400b8b19a9ef21257ad2471e3ab4a75bfef34f11d31b6586f"
+  },
+  "limits": [
+    "Synthetic data, one split and seed; no temporal prediction claim",
+    "Joint removal of six features cannot isolate each feature's effect",
+    "Reference has batch-dependent cumulative feature and post-event flags",
+    "Reference is a new controlled run, not the historical AUC 0.9701 snapshot",
+    "Balanced class weights remain; scores are not calibrated probabilities"
+  ]
+}

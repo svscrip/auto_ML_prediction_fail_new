@@ -2,9 +2,15 @@
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import RocCurveDisplay, confusion_matrix
+import matplotlib
+
+# Plots are only written to files. The default Tk backend on Windows opens
+# GUI resources and intermittently fails in tests with TclError.
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt  # noqa: E402
+import seaborn as sns  # noqa: E402
+from sklearn.metrics import RocCurveDisplay, confusion_matrix  # noqa: E402
 
 
 def save_confusion_matrix(y_true, y_pred, path: Path) -> None:

@@ -4,8 +4,11 @@ version = "1.0.0"
 description = "MLOps pipeline for industrial machine failure prediction (Kaggle Playground Series S3E17)"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
+# Group project: the original package author stays first; the yanshin branch
+# adds its maintainer. Full contributor history is in git log of main.
 authors = [
     { name = "Skripin Sergey" },
+    { name = "Яньшин А." },
 ]
 dependencies = [
     "pandas>=2.0.0",
@@ -27,11 +30,11 @@ package-mode = false
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.0"
 pytest-cov = ">=5.0.0"
-black = ">=24.3.0"
-isort = ">=5.13.0"
-flake8 = ">=7.0.0"
-flake8-bugbear = ">=24.2.6"
-pre-commit = ">=3.6.0"
+black = "==26.5.1"
+isort = "==9.0.2"
+flake8 = "==7.4.1"
+flake8-bugbear = "==26.9.30"
+pre-commit = "==4.6.2"
 
 # ─── Formatters ──────────────────────────────────────────────────────────────
 [tool.black]

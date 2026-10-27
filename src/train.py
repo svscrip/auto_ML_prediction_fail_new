@@ -48,6 +48,12 @@ def train_model(
     sample_size: int | None = None,
     output_dir: Path | None = None,
 ) -> dict:
+    if sample_size is not None and (
+        not isinstance(sample_size, int)
+        or isinstance(sample_size, bool)
+        or sample_size < 1
+    ):
+        raise ValueError("sample_size must be a positive integer or None")
     output_dir = output_dir or ARTIFACTS_DIR
     plots_dir = output_dir / "plots"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -162,19 +168,26 @@ def train_model(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train machine failure model")
-    parser.add_argument(
+    sampling = parser.add_mutually_exclusive_group()
+    sampling.add_argument(
         "--sample-size",
         type=int,
         default=None,
         help="Use subset for smoke tests (default: full dataset)",
     )
-    parser.add_argument(
+    sampling.add_argument(
         "--smoke",
         action="store_true",
         help=f"Train on {SMOKE_SAMPLE_SIZE} rows",
     )
     args = parser.parse_args()
-    sample = args.sample_size or (SMOKE_SAMPLE_SIZE if args.smoke else None)
+    if args.sample_size is not None and args.sample_size < 1:
+        parser.error("--sample-size must be a positive integer")
+    sample = (
+        args.sample_size
+        if args.sample_size is not None
+        else (SMOKE_SAMPLE_SIZE if args.smoke else None)
+    )
     metrics = train_model(sample_size=sample)
     print(json.dumps(metrics, indent=2))
 

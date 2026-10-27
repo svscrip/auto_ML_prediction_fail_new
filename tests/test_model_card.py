@@ -7,11 +7,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 import yaml
+from sklearn.metrics import brier_score_loss, log_loss
 
 from src.model_card import (
     DEFAULT_CARD_DATA_PATH,
     DEFAULT_CARD_PATH,
     RENDERERS,
+    constant_prior_baseline,
     expected_calibration_error,
     find_mismatches,
     load_render_context,
@@ -171,6 +173,20 @@ def test_markdown_internal_links_resolve():
             continue
         path = target.split("#", 1)[0]
         assert (DEFAULT_CARD_PATH.parent / path).exists(), target
+
+
+def test_constant_baseline_matches_sklearn_and_beats_snapshot_model():
+    rate = METRICS["dataset"]["validation"]["positive_rate"]
+    rows = METRICS["dataset"]["validation"]["rows"]
+    positives = METRICS["dataset"]["validation"]["positives"]
+    targets = np.r_[np.ones(positives), np.zeros(rows - positives)]
+    constant = np.full(rows, rate)
+    baseline = constant_prior_baseline(rate)
+    assert baseline["brier"] == pytest.approx(brier_score_loss(targets, constant))
+    assert baseline["log_loss"] == pytest.approx(log_loss(targets, constant))
+    # Balanced class weights make the scores worse probabilities than the prior.
+    assert METRICS["calibration"]["brier"] > baseline["brier"]
+    assert METRICS["calibration"]["log_loss"] > baseline["log_loss"]
 
 
 def test_expected_calibration_error_is_zero_for_perfect_scores():

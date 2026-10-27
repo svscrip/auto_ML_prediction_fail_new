@@ -1,17 +1,24 @@
 """Project configuration."""
 
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = PROJECT_ROOT / "keis7-main"
+DATA_DIR = Path(os.getenv("ML_DATA_DIR", str(PROJECT_ROOT / "keis7-main"))).resolve()
 TRAIN_CSV = DATA_DIR / "train.csv"
 TEST_CSV = DATA_DIR / "test.csv"
-ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+ARTIFACTS_DIR = Path(
+    os.getenv("ML_ARTIFACTS_DIR", str(PROJECT_ROOT / "artifacts"))
+).resolve()
 MLFLOW_DB = ARTIFACTS_DIR / "mlflow.db"
 MLFLOW_ARTIFACTS_DIR = ARTIFACTS_DIR / "mlartifacts"
-MLFLOW_TRACKING_URI = f"sqlite:///{MLFLOW_DB.resolve().as_posix()}"
-MLFLOW_ARTIFACTS_URI = f"file:///{MLFLOW_ARTIFACTS_DIR.resolve().as_posix()}"
-MLFLOW_EXPERIMENT_NAME = "machine_failure_prediction"
+MLFLOW_TRACKING_URI = os.getenv(
+    "MLFLOW_TRACKING_URI", f"sqlite:///{MLFLOW_DB.as_posix()}"
+)
+MLFLOW_ARTIFACTS_URI = os.getenv("MLFLOW_ARTIFACTS_URI", MLFLOW_ARTIFACTS_DIR.as_uri())
+MLFLOW_EXPERIMENT_NAME = os.getenv(
+    "MLFLOW_EXPERIMENT_NAME", "machine_failure_prediction"
+)
 
 TARGET_COL = "Machine failure"
 ID_COL = "id"

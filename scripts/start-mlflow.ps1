@@ -1,25 +1,16 @@
-# MLflow UI — тот же backend, что и src.train
-$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-Set-Location $Root
-
-$Python = Join-Path $Root ".venv\Scripts\python.exe"
-$Mlflow = Join-Path $Root ".venv\Scripts\mlflow.exe"
-
-if (-not (Test-Path $Python)) {
-    Write-Error "Сначала создайте окружение: poetry install (или .\scripts\bootstrap.ps1)"
-    exit 1
+# Use exactly the same tracking configuration as the training process.
+$ErrorActionPreference = 'Stop'
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+Set-Location -LiteralPath $ProjectRoot
+$ProjectPython = Join-Path $ProjectRoot '.venv\Scripts\python.exe'
+$ProjectMlflow = Join-Path $ProjectRoot '.venv\Scripts\mlflow.exe'
+if (-not (Test-Path -LiteralPath $ProjectPython)) {
+    throw 'Create the environment first: poetry sync --with dev'
 }
-
-$mlflowUri = & $Python -c "from src.config import MLFLOW_TRACKING_URI; print(MLFLOW_TRACKING_URI)"
-$artifactRoot = & $Python -c "from src.config import MLFLOW_ARTIFACTS_DIR; print(MLFLOW_ARTIFACTS_DIR.resolve())"
-
-Write-Host "Backend: $mlflowUri"
-Write-Host "Artifacts: $artifactRoot"
-Write-Host "MLflow UI: http://127.0.0.1:5000"
-Write-Host "Нажмите Ctrl+C для остановки"
-
-& $Mlflow ui `
-    --backend-store-uri $mlflowUri `
-    --default-artifact-root $artifactRoot `
-    --host 127.0.0.1 `
-    --port 5000
+$TrackingUri = & $ProjectPython -c 'from src.config import MLFLOW_TRACKING_URI; print(MLFLOW_TRACKING_URI)'
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read tracking configuration.' }
+$ArtifactUri = & $ProjectPython -c 'from src.config import MLFLOW_ARTIFACTS_URI; print(MLFLOW_ARTIFACTS_URI)'
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read artifact configuration.' }
+Write-Host 'MLflow UI: http://127.0.0.1:5000 (Ctrl+C to stop)'
+& $ProjectMlflow ui --backend-store-uri $TrackingUri --default-artifact-root $ArtifactUri --host 127.0.0.1 --port 5000
+if ($LASTEXITCODE -ne 0) { throw 'MLflow UI stopped with an error.' }

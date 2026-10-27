@@ -2,11 +2,12 @@ schema_version: "1.0"
 card_version: "1.0"
 title: "Model Card: прогнозирование отказов промышленного оборудования"
 language: ru
-last_reviewed: "2026-10-19"
+last_reviewed: "2026-10-24"
 scope: >
-  Полный прогон (full run) на 136 114 строках после ETL. Все таблицы с
-  метриками в docs/model-card.md генерируются из этого файла и JSON-снимка,
-  поэтому ручное редактирование таблиц не требуется.
+  Исторический полный прогон на 136 114 строках после ETL. Основные таблицы
+  с маркерами model-card генерируются из этого файла и JSON-снимка.
+  Отдельная таблица ablation в разделе 7 берётся из feature_ablation;
+  она не заменяет исторические метрики или основную модель.
 
 sources:
   metrics_snapshot: artifacts/example_model_card_metrics.json
@@ -15,6 +16,7 @@ sources:
   inference_monitoring: artifacts/example_inference_monitoring.json
   outdated_metrics: artifacts/example_metrics.json
   dataset: keis7-main/train.csv
+  feature_ablation: artifacts/example_feature_ablation.json
 
 model_details:
   name: "Machine Failure Predictor"
@@ -22,21 +24,21 @@ model_details:
   task: "Бинарная классификация табличных данных"
   algorithm: "CatBoostClassifier"
   framework: "CatBoost 1.2.10, scikit-learn 1.9.1"
-  owner: "Учебный проект MLOps (магистратура)"
+  owner: "Групповой учебный проект (main); доработка ветки yanshin — Яньшин А., Скрипин С."
   artifact: artifacts/model.cbm
-  mlflow_experiment: machine-failure-prediction
+  mlflow_experiment: machine_failure_prediction
   target: "Machine failure: 1 — отказ, 0 — норма"
   features: 17
-  categorical_features: ["Type"]
+  categorical_features: ["Type", "TWF", "HDF", "PWF", "OSF", "RNF"]
   decision_threshold: 0.5
   training_command: "poetry run python -m src.train"
   metrics_command: >-
     poetry run python -m src.model_card
     --output artifacts/model_card_metrics.json
-  card_command: "poetry run python -m src.model_card --write docs/model-card.md"
+  card_command: "poetry run python -m src.model_card --write model_card.md"
   license_note: >
-    Код распространяется по лицензии репозитория; исходный датасет AI4I 2020
-    опубликован на UCI Machine Learning Repository.
+    Условия использования кода и Kaggle S3E17 проверяются отдельно;
+    лицензия исходного AI4I 2020 не переносится автоматически на весь проект.
 
 intended_use:
   summary: >
@@ -44,7 +46,7 @@ intended_use:
     телеметрии и предназначена для ранжирования оборудования по риску.
     Решение об обслуживании принимает человек; модель не управляет станком.
   primary_uses:
-    - "Раннее предупреждение о вероятном отказе по текущим показаниям датчиков."
+    - "Учебная классификация текущего состояния; раннее предупреждение пока не подтверждено."
     - "Приоритизация оборудования для планового технического обслуживания."
     - "Учебная демонстрация полного MLOps-цикла: ETL, обучение, мониторинг, модель-карта."
   primary_users:
@@ -54,7 +56,7 @@ intended_use:
   out_of_scope:
     - "Автоматическое отключение или аварийная остановка оборудования."
     - "Определение конкретной причины отказа по одной вероятности модели."
-    - "Применение к типам оборудования и режимам, не представленным в датасете AI4I 2020."
+    - "Применение к типам оборудования и режимам, не представленным в обучающем наборе Kaggle S3E17."
     - "Оценка стоимости ремонта, остаточного ресурса или срока службы."
   human_oversight: >
     Обязательна: вероятность отказа — это сигнал для инженера, а не
@@ -70,7 +72,7 @@ factors:
     - "Tool wear [min]"
     - "TWF, HDF, PWF, OSF, RNF — флаги режимов отказа"
     - "delta_temperature [K], Power [kW], air_mass, air_heat_power [kW], efficiency [%]"
-    - "total_failures_cum — число прошлых отказов изделия"
+    - "total_failures_cum — число флагов в отсортированном пакете, не временная история"
     - "Type — категориальный тип изделия (L/M/H)"
   sensitive_attributes: >
     Персональные данные и защищённые атрибуты в датасете отсутствуют.
@@ -130,8 +132,8 @@ metrics:
 evaluation_data:
   protocol: >
     Стратифицированное разбиение 80/20 с random_state=42. Валидационная
-    часть не участвовала в обучении; ETL и расчёт total_failures_cum
-    выполняются до разбиения, как в src.train.
+    часть используется для early stopping, поэтому независимым тестом не является.
+    ETL и total_failures_cum выполняются до разбиения, создавая риск утечки.
   validation_rows: 27223
   validation_positives: 430
   validation_negatives: 26793
@@ -140,13 +142,13 @@ evaluation_data:
   smoke_rows: 4987
   inference_rows: 90954
   limitations: >
-    Датасет AI4I 2020 синтетический: он сгенерирован по модели износа
-    инструмента, а не собран на реальном парке станков. Валидация на нём
+    Датасет Kaggle S3E17 синтетический и связан с AI4I 2020;
+    это не исходные 10 000 записей UCI и не реальный парк станков. Валидация на нём
     не доказывает качество на реальном производстве.
 
 
 training_data:
-  dataset: "AI4I 2020 Predictive Maintenance Dataset (UCI), файл keis7-main/train.csv"
+  dataset: "Kaggle Playground Series S3E17, файл keis7-main/train.csv"
   rows_raw: 136429
   rows_after_etl: 136114
   target_rate_raw: 0.0157
@@ -160,7 +162,7 @@ training_data:
     флага режима; остальные отказы сопровождаются флагами TWF/HDF/PWF/OSF/RNF.
   features_engineering:
     - "delta_temperature, Power, air_mass, air_heat_power, efficiency."
-    - "total_failures_cum — накопленное число прошлых отказов изделия; текущая строка исключена."
+    - "total_failures_cum — накопленное число флагов в отсортированном пакете, не временная история; текущая строка исключена."
     - "Сортировка по Type, Product ID и Tool wear перед расчётом cumsum."
   class_imbalance: "Примерно 1 отказ на 62 наблюдения (1.58%)."
   leakage_risk: >
@@ -197,8 +199,8 @@ quantitative_analyses:
     синтетической генерации и не является доказательством устойчивости
     к реальному дрейфу.
   monitoring_findings: >
-    risk_level строится по квантилям: ровно 10% наблюдений всегда попадают
-    в «Высокий» риск независимо от абсолютной вероятности. Это ранжирование,
+    risk_level строится по квантилям: около 10% наблюдений без совпадений квантилей попадают
+    в «Высокий» риск; при совпадениях доля может быть меньше независимо от абсолютной вероятности. Это ранжирование,
     а не калиброванная вероятность отказа.
 
 
@@ -214,7 +216,7 @@ ethical_considerations:
   fairness: >
     Защищённые группы в данных отсутствуют. Различия по Type отражают
     состав парка и могут быть значимы при переносе модели.
-  environmental: "Обучение CatBoost на 136 тыс. строк занимает секунды на CPU."
+  environmental: "Энергопотребление и углеродный след не измерялись."
 
 caveats_and_recommendations:
   caveats:
@@ -235,9 +237,9 @@ caveats_and_recommendations:
 
 render:
   type_labels:
-    L: "L — низкая нагрузка"
-    M: "M — средняя нагрузка"
-    H: "H — высокая нагрузка"
+    L: "L — вариант L"
+    M: "M — вариант M"
+    H: "H — вариант H"
   failure_mode_labels:
     TWF: "Tool Wear Failure — износ инструмента"
     HDF: "Heat Dissipation Failure — перегрев"

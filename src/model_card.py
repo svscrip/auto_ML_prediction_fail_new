@@ -3,7 +3,7 @@
 The module evaluates the trained CatBoost model on exactly the same stratified
 hold-out split as :mod:`src.train`, enriches the result with calibration,
 subgroup, environment and git metadata, and stores it as JSON.  The JSON
-snapshot is used to render the tables in ``docs/model-card.md`` between
+snapshot is used to render the tables in ``model_card.md`` between
 ``<!-- model-card:<name>:start -->`` markers.
 
 Examples
@@ -14,11 +14,11 @@ Compute a fresh snapshot after training::
 
 Render the documentation from the snapshot::
 
-    poetry run python -m src.model_card --write docs/model-card.md
+    poetry run python -m src.model_card --write model_card.md
 
 Verify that the documentation is up to date (used by tests and CI)::
 
-    poetry run python -m src.model_card --check docs/model-card.md
+    poetry run python -m src.model_card --check model_card.md
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ ECE_BINS = 10
 DEFAULT_METRICS_PATH = ARTIFACTS_DIR / "model_card_metrics.json"
 EXAMPLE_METRICS_PATH = ARTIFACTS_DIR / "example_model_card_metrics.json"
 OUTDATED_METRICS_PATH = ARTIFACTS_DIR / "example_metrics.json"
-DEFAULT_CARD_PATH = PROJECT_ROOT / "docs" / "model-card.md"
+DEFAULT_CARD_PATH = PROJECT_ROOT / "model_card.md"
 DEFAULT_CARD_DATA_PATH = PROJECT_ROOT / "docs" / "model-card.yaml"
 
 FAILURE_MODE_LABELS = {
@@ -617,15 +617,43 @@ def _render_threshold_sweep(context: dict[str, Any]) -> str:
     )
 
 
+def constant_prior_baseline(positive_rate: float) -> dict[str, float]:
+    """Brier score and log loss of always predicting the observed failure rate."""
+    if not 0 < positive_rate < 1:
+        raise ValueError("positive_rate must be strictly between 0 and 1")
+    p = float(positive_rate)
+    return {
+        "brier": p * (1 - p),
+        "log_loss": -(p * np.log(p) + (1 - p) * np.log(1 - p)),
+    }
+
+
 def _render_calibration(context: dict[str, Any]) -> str:
     calibration = context["metrics"]["calibration"]
+    rate = context["metrics"]["dataset"]["validation"]["positive_rate"]
+    baseline = constant_prior_baseline(rate)
     rows = [
-        ["Brier score", _format_value(calibration["brier"])],
-        ["Log loss", _format_value(calibration["log_loss"])],
-        ["ECE", _format_value(calibration["ece"])],
-        ["Бинов ECE", calibration["bins"]],
+        [
+            "Brier score",
+            _format_value(calibration["brier"]),
+            _format_value(baseline["brier"]),
+        ],
+        [
+            "Log loss",
+            _format_value(calibration["log_loss"]),
+            _format_value(baseline["log_loss"]),
+        ],
+        ["ECE", _format_value(calibration["ece"]), _format_value(0.0)],
+        ["Бинов ECE", calibration["bins"], calibration["bins"]],
     ]
-    return _table(["Метрика калибровки", "Значение"], rows)
+    return _table(
+        [
+            "Метрика калибровки",
+            "Модель",
+            f"Константа {_format_percent(rate)} (доля отказов)",
+        ],
+        rows,
+    )
 
 
 def _render_dataset_summary(context: dict[str, Any]) -> str:
@@ -838,7 +866,7 @@ def _load_card_data(path: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Build model card metrics and render docs/model-card.md"
+        description="Build model card metrics and render model_card.md"
     )
     parser.add_argument(
         "--output",

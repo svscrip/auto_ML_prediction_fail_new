@@ -1,29 +1,15 @@
-# Локальный запуск MLOps-пайплайна
-$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-Set-Location $Root
-
-$Python = Join-Path $Root ".venv\Scripts\python.exe"
-$Mlflow = Join-Path $Root ".venv\Scripts\mlflow.exe"
-
-if (-not (Test-Path $Python)) {
-    Write-Error "Сначала создайте окружение: poetry install (или .\scripts\bootstrap.ps1)"
-    exit 1
+# Stop immediately if training/inference fails; never serve a stale model by accident.
+$ErrorActionPreference = 'Stop'
+$ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+Set-Location -LiteralPath $ProjectRoot
+$ProjectPython = Join-Path $ProjectRoot '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $ProjectPython)) {
+    throw 'Create the environment first: poetry sync --with dev'
 }
-
-Write-Host "=== Обучение (smoke) ==="
-& $Python -m src.train --smoke
-
-Write-Host "`n=== Инференс ==="
-& $Python -m src.predict
-
-$dbPath = (Join-Path $Root "artifacts\mlflow.db").Replace("\", "/")
-$artifactRoot = Join-Path $Root "artifacts\mlartifacts"
-$mlflowUri = "sqlite:///$dbPath"
-
-Write-Host "`n=== MLflow UI: http://127.0.0.1:5000 ==="
-Write-Host "Нажмите Ctrl+C для остановки MLflow"
-& $Mlflow ui `
-    --backend-store-uri $mlflowUri `
-    --default-artifact-root $artifactRoot `
-    --host 127.0.0.1 `
-    --port 5000
+Write-Host 'Training smoke model...'
+& $ProjectPython -m src.train --smoke
+if ($LASTEXITCODE -ne 0) { throw 'Training failed; inference and UI were not started.' }
+Write-Host 'Running inference...'
+& $ProjectPython -m src.predict
+if ($LASTEXITCODE -ne 0) { throw 'Inference failed; UI was not started.' }
+& (Join-Path $ProjectRoot 'scripts\start-mlflow.ps1')

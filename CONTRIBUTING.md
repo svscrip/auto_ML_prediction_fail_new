@@ -21,7 +21,7 @@
 pip install --user poetry
 
 # Создать .venv и установить зависимости (runtime + dev)
-poetry install
+poetry sync --with dev
 
 # Активировать окружение
 .\.venv\Scripts\Activate.ps1
@@ -30,7 +30,7 @@ poetry install
 Либо одной командой через скрипт-хелпер:
 
 ```powershell
-.\scripts\bootstrap.ps1     # установка Poetry + poetry install
+.\scripts\bootstrap.ps1     # проверка lock + poetry sync + установка хуков
 .\scripts\activate.ps1      # активация .venv
 ```
 
@@ -38,7 +38,7 @@ poetry install
 
 ```bash
 pip install --user poetry
-poetry install
+poetry sync --with dev
 source .venv/bin/activate
 ```
 
@@ -54,7 +54,7 @@ poetry run pre-commit install
 Теперь при каждом `git commit` автоматически запускаются:
 
 - `trailing-whitespace`, `end-of-file-fixer`, `check-yaml`, `check-toml`,
-  `check-added-large-files`, `detect-private-key`, `mixed-line-ending`;
+  `check-added-large-files`, `detect-private-key`, `check-merge-conflict`;
 - **black** — форматирование кода;
 - **isort** — сортировка импортов;
 - **flake8** (+ flake8-bugbear) — статический анализ.
@@ -96,14 +96,15 @@ poetry run pytest -q -m slow         # полный smoke-тест обучен�
 poetry run pytest -q --cov=src       # с покрытием
 ```
 
-Пометкой `@pytest.mark.slow` отмечены долгие тесты (полное обучение);
+Пометкой `@pytest.mark.slow` отмечено smoke-обучение на 5 000 строках;
+это не обучение на всём датасете. Такие тесты
 по умолчанию они исключаются через `addopts`.
 
 ## 6. Git workflow
 
-- Базовая ветка — `main`.
-- Новая функциональность — в ветке `feature/<краткое-имя>`.
-- Изменения вливаются через **Pull Request**; merge — только после зелёного CI.
+- Для этой индивидуальной сдачи используется ветка `yanshin`, созданная от `main`.
+- Работа велась в `yanshin`; после проверок и зелёного CI ветка слита в `main`
+  через pull request. Новые изменения — снова через отдельную ветку и PR.
 - Сообщения коммитов — в формате
   [Conventional Commits](https://www.conventionalcommits.org/):
   `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`, `refactor: ...`, `test: ...`.
@@ -126,3 +127,11 @@ poetry run pytest -q --cov=src       # с покрытием
   poetry export --without-hashes --only main -o requirements.txt
   poetry export --without-hashes --with dev -o requirements-lock.txt
   ```
+
+## Независимый аудит
+
+Критерии и воспроизводимые команды: [AI_REVIEW.md](docs/AI_REVIEW.md).
+`reset-mlflow.ps1` архивирует только стандартное локальное хранилище: сначала
+остановите MLflow/обучение и посмотрите план через `-WhatIf`. Скрипт не удаляет
+историю и не завершает чужие процессы. При пользовательских путях он отказывается
+работать; для проверки проекта сброс хранилища не требуется.

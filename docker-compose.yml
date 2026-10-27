@@ -1,6 +1,15 @@
+# Containers keep their own MLflow store in ./artifacts/docker. A store created
+# by a local (Windows/macOS) run records host paths as the artifact location,
+# and src.mlflow_setup refuses to reuse it instead of deleting the history.
+x-docker-store: &docker-store
+  ML_ARTIFACTS_DIR: /app/artifacts/docker
+  MLFLOW_TRACKING_URI: sqlite:////app/artifacts/docker/mlflow.db
+  MLFLOW_ARTIFACTS_URI: file:///app/artifacts/docker/mlartifacts
+
 services:
   train:
     build: .
+    environment: *docker-store
     volumes:
       - ./artifacts:/app/artifacts
       - ./keis7-main:/app/keis7-main:ro
@@ -8,24 +17,26 @@ services:
 
   predict:
     build: .
+    environment: *docker-store
     volumes:
       - ./artifacts:/app/artifacts
       - ./keis7-main:/app/keis7-main:ro
     command: ["src.predict"]
     depends_on:
-      - train
+      train:
+        condition: service_completed_successfully
 
   mlflow:
     build:
       context: .
       dockerfile: Dockerfile.mlflow
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"
     volumes:
       - ./artifacts:/app/artifacts
     command: >
       mlflow server
       --host 0.0.0.0
       --port 5000
-      --backend-store-uri sqlite:////app/artifacts/mlflow.db
-      --default-artifact-root /app/artifacts/mlartifacts
+      --backend-store-uri sqlite:////app/artifacts/docker/mlflow.db
+      --default-artifact-root file:///app/artifacts/docker/mlartifacts

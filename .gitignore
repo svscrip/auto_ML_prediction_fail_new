@@ -26,6 +26,7 @@ artifacts/*
 !artifacts/example_monitoring_summary.json
 !artifacts/example_inference_monitoring.json
 !artifacts/example_model_card_metrics.json
+!artifacts/example_feature_ablation.json
 
 artifacts/mlflow.db
 artifacts/mlartifacts/

@@ -1,6 +1,8 @@
 """Extract: load and validate CSV data."""
 
+import numpy as np
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 
 from src.config import (
     FAILURE_FLAGS,
@@ -40,6 +42,9 @@ def validate_schema(df: pd.DataFrame, require_target: bool = True) -> None:
     if missing:
         raise ValueError(f"Missing columns: {missing}")
 
+    if df.empty:
+        raise ValueError("Dataset must not be empty")
+
     if require_target and df[TARGET_COL].isna().any():
         raise ValueError(f"Null values in target column {TARGET_COL}")
 
@@ -53,3 +58,17 @@ def validate_schema(df: pd.DataFrame, require_target: bool = True) -> None:
     for col in FAILURE_FLAGS:
         if col in df.columns and df[col].isna().any():
             raise ValueError(f"Null values in failure flag column {col}")
+
+    for col in RAW_NUMERIC_FEATURES:
+        if not is_numeric_dtype(df[col]) or not np.isfinite(df[col]).all():
+            raise ValueError(f"Expected finite numeric values in column {col}")
+    for col in FAILURE_FLAGS + ([TARGET_COL] if require_target else []):
+        if not df[col].isin([0, 1]).all():
+            raise ValueError(f"Expected binary values in column {col}")
+    if not df[TYPE_COL].isin(["L", "M", "H"]).all():
+        raise ValueError("Type must be one of L, M, H")
+    for col in [ID_COL, PRODUCT_ID_COL]:
+        if df[col].isna().any() or df[col].astype(str).str.strip().eq("").any():
+            raise ValueError(f"Missing identifier in column {col}")
+    if df[ID_COL].duplicated().any():
+        raise ValueError("Duplicate row id")
