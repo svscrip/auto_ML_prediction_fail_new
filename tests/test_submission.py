@@ -54,7 +54,7 @@ def _reachable(edges, start, blocked=None):
 
 
 def test_bpmn_is_complete_and_cannot_publish_without_review():
-    root = ET.parse(ROOT / "docs/bpmn/retraining-yanshin.bpmn").getroot()
+    root = ET.parse(ROOT / "docs/bpmn/model-retraining.bpmn").getroot()
     process = root.find(f"{BPMN}process")
     assert process is not None and process.get("isExecutable") == "false"
     nodes = {

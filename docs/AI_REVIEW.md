@@ -62,7 +62,7 @@
 | Метрики карточки имеют источник | `artifacts/example_model_card_metrics.json`, `docs/model-card.yaml`, `src/model_card.py` |
 | Цифры и смысл выводов корректны | Порог, confusion matrix, recall/precision, объёмы выборок, смещения и ранжирование риска |
 | Применение ML обосновано | `Model_BPMN.md`, роль инженера, сравнение с простыми правилами, способ измерения эффекта |
-| Переобучение логично | `Model_retrain_BPMN.md`, `docs/bpmn/retraining-yanshin.bpmn` и SVG; границы между существующим кодом и проектом |
+| Переобучение логично | `Model_retrain_BPMN.md`, `docs/bpmn/model-retraining.bpmn` и SVG; границы между существующим кодом и проектом |
 | Речь пригодна для защиты | `docs/defense.md` и доступные подтверждения каждого утверждения |
 | Сравнение наборов признаков воспроизводимо | `src/ablation.py`, `tests/test_ablation.py`, `docs/feature-ablation.md`, `artifacts/example_feature_ablation.json`; одинаковые строки и разбиение, отсутствие очистки по метке/флагам, отдельная финальная оценка |
 

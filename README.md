@@ -179,7 +179,7 @@ poetry run python -m src.model_card --write model_card.md --metrics artifacts/ex
 `poetry run python -m src.model_card --output artifacts/model_card_metrics.json`.
 Перед заменой публикуемых чисел нужно обновить метаданные и сравнить результаты.
 
-Схема переобучения существует в Markdown и [BPMN 2.0](docs/bpmn/retraining-yanshin.bpmn)
+Схема переобучения существует в Markdown и [BPMN 2.0](docs/bpmn/model-retraining.bpmn)
 для bpmn.io. Это проектируемый процесс: автоматический scheduler, Registry,
 согласование, Telegram и промышленный rollout пока не подключены.
 

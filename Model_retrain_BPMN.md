@@ -1,6 +1,6 @@
 # Процесс переобучения модели
 
-**Автор: Яньшин А.** Учебная доработка группового проекта, ветка `yanshin`.
+**Автор: Фер Андрей.** Учебная доработка группового проекта.
 
 ## Статус решения
 
@@ -10,15 +10,15 @@
 форма согласования, промышленный деплой и Telegram-интеграция **не реализованы**.
 Tracking экспериментов не равнозначен регистрации версии для эксплуатации.
 
-Редактируемая схема BPMN 2.0: [retraining-yanshin.bpmn](docs/bpmn/retraining-yanshin.bpmn).
-[Векторное изображение схемы](docs/bpmn/retraining-yanshin.svg) — оно же встроено ниже.
+Редактируемая схема BPMN 2.0: [model-retraining.bpmn](docs/bpmn/model-retraining.bpmn).
+[Векторное изображение схемы](docs/bpmn/model-retraining.svg) — оно же встроено ниже.
 Открыть через **Open diagram** в [bpmn.io](https://demo.bpmn.io/).
 `isExecutable=false`: схема описывает требования, не запускает обучение или уведомления.
 Ниже — та же схема в нотации BPMN и её обзор в Mermaid для чтения на GitHub.
 
 ## Схема
 
-![BPMN 2.0: процесс переобучения модели](docs/bpmn/retraining-yanshin.svg)
+![BPMN 2.0: процесс переобучения модели](docs/bpmn/model-retraining.svg)
 
 ```mermaid
 flowchart TD

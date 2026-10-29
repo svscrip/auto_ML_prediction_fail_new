@@ -72,7 +72,7 @@ lineage, проходит smoke и ограниченный rollout, затем 
 | Утверждение | Что показать |
 | --- | --- |
 | Процесс переобучения — проект, а не работающий scheduler | `Model_retrain_BPMN.md`, раздел «Статус решения» |
-| Есть редактируемая BPMN 2.0 и SVG-схема | `docs/bpmn/retraining-yanshin.bpmn`, `docs/bpmn/retraining-yanshin.svg`; `isExecutable=false` |
+| Есть редактируемая BPMN 2.0 и SVG-схема | `docs/bpmn/model-retraining.bpmn`, `docs/bpmn/model-retraining.svg`; `isExecutable=false` |
 | Триггеры и пороги описаны явно | `Model_retrain_BPMN.md`, раздел «Триггеры и предпосылки» |
 | Условия сравнения candidate и champion | `Model_retrain_BPMN.md`, раздел «Аукцион по AUC» |
 | Неуспешные ветки, человек и откат | `Model_retrain_BPMN.md`, раздел «Неуспешные ветки, человек и откат» |
